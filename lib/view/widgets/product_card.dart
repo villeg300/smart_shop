@@ -10,6 +10,9 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final variant =
+        product.variants.isNotEmpty ? product.variants.first : null;
+    final oldPrice = variant?.compareAtPrice;
     return Container(
       constraints: BoxConstraints(maxWidth: screenWidth * 0.9),
       decoration: BoxDecoration(
@@ -37,7 +40,7 @@ class ProductCard extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                   child: Image.asset(
-                    product.imageUrl,
+                    product.image,
                     width: double.infinity,
                     fit: BoxFit.cover,
                   ),
@@ -50,16 +53,12 @@ class ProductCard extends StatelessWidget {
                 child: IconButton(
                   onPressed: () {},
                   icon: Icon(
-                    product.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: product.isFavorite
-                        ? Theme.of(context).primaryColor
-                        : isDark
-                        ? Colors.grey[400]
-                        : Colors.grey,
+                    Icons.favorite_border,
+                    color: isDark ? Colors.grey[400] : Colors.grey,
                   ),
                 ),
               ),
-              if (product.oldPrice != null)
+              if (oldPrice != null)
                 Positioned(
                   left: 8,
                   top: 8,
@@ -70,7 +69,7 @@ class ProductCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      "${calculateDiscount(product.price, product.oldPrice!)}%",
+                      "${calculateDiscount(variant!.price, oldPrice)}%",
                       style: AppTextStyles.withColor(
                         AppTextStyles.withWeight(
                           AppTextStyles.bodySmall,
@@ -99,7 +98,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 SizedBox(height: screenWidth * 0.01),
                 Text(
-                  product.category,
+                  product.category.name,
                   style: AppTextStyles.withColor(
                     AppTextStyles.bodyMedium,
                     isDark ? Colors.grey[400]! : Colors.grey[600]!,
@@ -110,7 +109,9 @@ class ProductCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "f ${product.price.toStringAsFixed(0)}",
+                      variant == null
+                          ? "Prix indisponible"
+                          : "f ${variant.price.toStringAsFixed(0)}",
                       style: AppTextStyles.withColor(
                         AppTextStyles.withWeight(
                           AppTextStyles.bodyLarge,
@@ -119,10 +120,10 @@ class ProductCard extends StatelessWidget {
                         Theme.of(context).textTheme.bodyLarge!.color!,
                       ),
                     ),
-                    if (product.oldPrice != null) ...[
+                    if (oldPrice != null) ...[
                       SizedBox(height: screenWidth * 0.01),
                       Text(
-                        "f ${product.oldPrice!.toStringAsFixed(0)}",
+                        "f ${oldPrice.toStringAsFixed(0)}",
                         style: AppTextStyles.withColor(
                           AppTextStyles.bodySmall,
                           isDark ? Colors.grey[400]! : Colors.grey[600]!,

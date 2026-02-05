@@ -8,27 +8,27 @@ class ColorSelector extends StatefulWidget {
 }
 
 class _ColorSelectorState extends State<ColorSelector> {
+  int selectedColor = 0;
+
   @override
   Widget build(BuildContext context) {
-    int selectedColor = 0;
     final colors = ["Blanc", "Bleu", "Noire", "Rose"];
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: List.generate(
         colors.length,
-        (index) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(colors[index]),
-            selected: selectedColor == index,
-            onSelected: (bool selected) {
-              setState(() {
-                selectedColor = selected ? index : selectedColor;
-              });
-            },
-            selectedColor: Theme.of(context).primaryColor,
-            labelStyle: TextStyle(
-              color: selectedColor == index ? Colors.white : Colors.black,
-            ),
+        (index) => ChoiceChip(
+          label: Text(colors[index]),
+          selected: selectedColor == index,
+          onSelected: (bool selected) {
+            setState(() {
+              selectedColor = selected ? index : selectedColor;
+            });
+          },
+          selectedColor: Theme.of(context).primaryColor,
+          labelStyle: TextStyle(
+            color: selectedColor == index ? Colors.white : Colors.black,
           ),
         ),
       ),

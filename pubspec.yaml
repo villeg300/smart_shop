@@ -38,6 +38,7 @@ dependencies:
   get: ^4.7.3
   get_storage: ^2.1.1
   share_plus: ^12.0.1
+  http: ^1.2.2
 
 
 dev_dependencies:

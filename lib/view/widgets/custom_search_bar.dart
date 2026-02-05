@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
 
 class CustomSearchBar extends StatelessWidget {
-  const CustomSearchBar({super.key});
+  final EdgeInsetsGeometry? padding;
+  const CustomSearchBar({super.key, this.padding});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: EdgeInsets.all(16),
+      padding: padding ?? EdgeInsets.zero,
       child: TextField(
         style: AppTextStyles.withColor(
           AppTextStyles.buttonMedium,

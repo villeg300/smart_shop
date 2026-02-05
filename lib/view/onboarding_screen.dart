@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/controllers/auth_controller.dart';
+import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
 import 'package:smart_shop/view/signin_screen.dart';
 
@@ -54,28 +55,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               });
             },
             itemBuilder: (context, index) {
-              return Column(
+              final spacing = AppResponsive.sectionSpacing(context);
+              final image = Image.asset(
+                _items[index].image,
+                height: AppResponsive.isDesktop(context)
+                    ? 360
+                    : MediaQuery.of(context).size.height * 0.35,
+              );
+              final textBlock = Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: AppResponsive.isDesktop(context)
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    _items[index].image,
-                    height: MediaQuery.of(context).size.height * 0.4,
-                  ),
-                  const SizedBox(height: 40),
                   Text(
                     _items[index].title,
-                    textAlign: TextAlign.center,
+                    textAlign: AppResponsive.isDesktop(context)
+                        ? TextAlign.left
+                        : TextAlign.center,
                     style: AppTextStyles.withColor(
                       AppTextStyles.h1,
                       Theme.of(context).textTheme.bodyLarge!.color!,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
+                  SizedBox(height: spacing / 2),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: AppResponsive.isDesktop(context) ? 420 : 480,
+                    ),
                     child: Text(
                       _items[index].description,
-                      textAlign: TextAlign.center,
+                      textAlign: AppResponsive.isDesktop(context)
+                          ? TextAlign.left
+                          : TextAlign.center,
                       style: AppTextStyles.withColor(
                         AppTextStyles.bodyLarge,
                         isDark ? Colors.grey[400]! : Colors.grey[600]!,
@@ -83,6 +95,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                 ],
+              );
+
+              return Padding(
+                padding: AppResponsive.pagePadding(context),
+                child: AppResponsive.isDesktop(context)
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(child: Center(child: image)),
+                          SizedBox(width: spacing),
+                          Expanded(child: textBlock),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          image,
+                          SizedBox(height: spacing),
+                          textBlock,
+                        ],
+                      ),
               );
             },
           ),
@@ -140,16 +173,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       _handleGetStarted();
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadiusGeometry.circular(12),
-                    ),
-                  ),
                   child: Text(
                     _curentPage < _items.length - 1 ? "Suivant" : "Commencer",
                     style: AppTextStyles.withColor(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:smart_shop/models/product.dart';
+import 'package:smart_shop/data/mock_data.dart';
+import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/view/product_detail_screen.dart';
 import 'package:smart_shop/view/widgets/product_card.dart';
 
@@ -8,17 +9,19 @@ class ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final crossAxisCount = AppResponsive.gridCrossAxisCount(context);
+    final spacing = AppResponsive.gridSpacing(context);
     return GridView.builder(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.zero,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: AppResponsive.isMobile(context) ? 0.7 : 0.8,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
       ),
-      itemCount: products.length,
+      itemCount: mockCatalog.length,
       itemBuilder: (context, index) {
-        final product = products[index];
+        final product = mockCatalog[index];
         return GestureDetector(
           onTap: () => Navigator.push(
             context,
