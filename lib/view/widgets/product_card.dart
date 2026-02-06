@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/models/product.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
 
@@ -13,6 +15,7 @@ class ProductCard extends StatelessWidget {
     final variant =
         product.variants.isNotEmpty ? product.variants.first : null;
     final oldPrice = variant?.compareAtPrice;
+    final storeController = Get.find<StoreController>();
     return Container(
       constraints: BoxConstraints(maxWidth: screenWidth * 0.9),
       decoration: BoxDecoration(
@@ -50,11 +53,19 @@ class ProductCard extends StatelessWidget {
               Positioned(
                 right: 8,
                 top: 8,
-                child: IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.favorite_border,
-                    color: isDark ? Colors.grey[400] : Colors.grey,
+                child: Obx(
+                  () => IconButton(
+                    onPressed: () => storeController.toggleFavorite(product),
+                    icon: Icon(
+                      storeController.isFavorite(product)
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      color: storeController.isFavorite(product)
+                          ? Theme.of(context).primaryColor
+                          : isDark
+                          ? Colors.grey[400]
+                          : Colors.grey,
+                    ),
                   ),
                 ),
               ),

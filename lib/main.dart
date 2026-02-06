@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:smart_shop/controllers/auth_controller.dart';
 import 'package:smart_shop/controllers/navigation_controller.dart';
+import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/controllers/theme_controller.dart';
 import 'package:smart_shop/utils/app_themes.dart';
 import 'package:smart_shop/view/splash_screen.dart';
@@ -12,6 +13,7 @@ void main() async {
   Get.put(ThemeController());
   Get.put(AuthController());
   Get.put(NavigationController());
+  Get.put(StoreController());
   runApp(const MyApp());
 }
 

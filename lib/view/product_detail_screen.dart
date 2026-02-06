@@ -1,20 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/models/product.dart';
+import 'package:smart_shop/models/product_variant.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
-import 'package:smart_shop/view/widgets/color_selector.dart';
 
-class ProductDetailScreen extends StatelessWidget {
+class ProductDetailScreen extends StatefulWidget {
   final Product product;
   const ProductDetailScreen({super.key, required this.product});
+
+  @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  int selectedVariantIndex = 0;
+  final StoreController storeController = Get.find<StoreController>();
+
+  Product get product => widget.product;
+
+  ProductVariant? get selectedVariant {
+    if (product.variants.isEmpty) {
+      return null;
+    }
+    final index = selectedVariantIndex.clamp(0, product.variants.length - 1);
+    return product.variants[index];
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenHeight = AppResponsive.screenHeight(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final variant =
-        product.variants.isNotEmpty ? product.variants.first : null;
+    final variant = selectedVariant;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -31,6 +50,21 @@ class ProductDetailScreen extends StatelessWidget {
             icon: Icon(
               Icons.share,
               color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          Obx(
+            () => IconButton(
+              onPressed: () => storeController.toggleFavorite(product),
+              icon: Icon(
+                storeController.isFavorite(product)
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                color: storeController.isFavorite(product)
+                    ? Theme.of(context).primaryColor
+                    : isDark
+                    ? Colors.white
+                    : Colors.black,
+              ),
             ),
           ),
         ],
@@ -78,16 +112,55 @@ class ProductDetailScreen extends StatelessWidget {
                   Theme.of(context).textTheme.headlineMedium!.color!,
                 ),
               ),
-              SizedBox(height: spacing),
-              Text(
-                "Selectionner une couleur",
-                style: AppTextStyles.withColor(
-                  AppTextStyles.labelMedium,
-                  Theme.of(context).textTheme.bodyLarge!.color!,
+              if (variant?.compareAtPrice != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  "f ${variant!.compareAtPrice!.toStringAsFixed(0)}",
+                  style: AppTextStyles.withColor(
+                    AppTextStyles.bodySmall,
+                    isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                  ).copyWith(decoration: TextDecoration.lineThrough),
                 ),
-              ),
-              SizedBox(height: spacing / 2),
-              const ColorSelector(),
+              ],
+              SizedBox(height: spacing),
+              if (product.variants.isNotEmpty) ...[
+                Text(
+                  "Selectionner une variante",
+                  style: AppTextStyles.withColor(
+                    AppTextStyles.labelMedium,
+                    Theme.of(context).textTheme.bodyLarge!.color!,
+                  ),
+                ),
+                SizedBox(height: spacing / 2),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(product.variants.length, (index) {
+                    final item = product.variants[index];
+                    final label = _variantLabel(item);
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: selectedVariantIndex == index,
+                      onSelected: (selected) {
+                        if (!selected) {
+                          return;
+                        }
+                        setState(() {
+                          selectedVariantIndex = index;
+                        });
+                      },
+                      selectedColor: Theme.of(context).primaryColor,
+                      labelStyle: TextStyle(
+                        color: selectedVariantIndex == index
+                            ? Colors.white
+                            : isDark
+                            ? Colors.grey[300]
+                            : Colors.grey[800],
+                      ),
+                    );
+                  }),
+                ),
+              ],
               SizedBox(height: spacing),
               Text(
                 "Description",
@@ -107,27 +180,31 @@ class ProductDetailScreen extends StatelessWidget {
             ],
           );
 
+          final imagePath = (variant?.image.isNotEmpty ?? false)
+              ? variant!.image
+              : product.image;
+
           final imageWidget = Stack(
             children: [
               AspectRatio(
                 aspectRatio: 16 / 10,
                 child: Image.asset(
-                  product.image,
+                  imagePath,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.favorite_border,
-                    color: isDark ? Colors.black : Colors.white,
-                  ),
-                ),
-              ),
+              // Positioned(
+              //   right: 8,
+              //   top: 8,
+              //   child: IconButton(
+              //     onPressed: () {},
+              //     icon: Icon(
+              //       Icons.favorite_border,
+              //       color: isDark ? Colors.black : Colors.white,
+              //     ),
+              //   ),
+              // ),
             ],
           );
 
@@ -171,7 +248,9 @@ class ProductDetailScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: variant == null
+                      ? null
+                      : () => storeController.addToCart(product, variant),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsetsDirectional.symmetric(
                       vertical: screenHeight * 0.02,
@@ -189,10 +268,12 @@ class ProductDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: screenWidth * 0.04),
+              SizedBox(width: AppResponsive.itemSpacing(context)),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: variant == null
+                      ? null
+                      : () => storeController.addToCart(product, variant),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsetsDirectional.symmetric(
                       vertical: screenHeight * 0.02,
@@ -200,7 +281,7 @@ class ProductDetailScreen extends StatelessWidget {
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
                   child: Text(
-                    "Reserver Maintenant",
+                    "Reserver",
                     style: AppTextStyles.withColor(
                       AppTextStyles.buttonMedium,
                       Colors.white,
@@ -237,5 +318,19 @@ class ProductDetailScreen extends StatelessWidget {
     } catch (e) {
       debugPrint("Erreur de partage: $e");
     }
+  }
+
+  String _variantLabel(ProductVariant variant) {
+    final parts = <String>[];
+    if (variant.attributes['color'] != null) {
+      parts.add(variant.attributes['color'].toString());
+    }
+    if (variant.attributes['storage'] != null) {
+      parts.add(variant.attributes['storage'].toString());
+    }
+    if (parts.isEmpty) {
+      return variant.sku;
+    }
+    return parts.join(' · ');
   }
 }

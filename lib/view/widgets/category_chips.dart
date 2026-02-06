@@ -6,20 +6,29 @@ import 'package:smart_shop/utils/app_textstyles.dart';
 class CategoryChips extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
   final List<String>? categories;
-  const CategoryChips({super.key, this.padding, this.categories});
+  final int? selectedIndex;
+  final ValueChanged<int>? onSelected;
+  const CategoryChips({
+    super.key,
+    this.padding,
+    this.categories,
+    this.selectedIndex,
+    this.onSelected,
+  });
 
   @override
   State<CategoryChips> createState() => _CategoryChipsState();
 }
 
 class _CategoryChipsState extends State<CategoryChips> {
-  int selectedIndex = 0;
+  int? _internalSelectedIndex;
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final labels = widget.categories ??
         mockCategories.map((category) => category.name).toList();
     final spacing = AppResponsive.itemSpacing(context);
+    final selectedIndex = widget.selectedIndex ?? _internalSelectedIndex ?? 0;
     final chipWidgets = List.generate(
       labels.length,
       (index) => AnimatedContainer(
@@ -45,8 +54,10 @@ class _CategoryChipsState extends State<CategoryChips> {
           selected: selectedIndex == index,
           onSelected: (bool selected) {
             setState(() {
-              selectedIndex = selected ? index : selectedIndex;
+              _internalSelectedIndex =
+                  selected ? index : _internalSelectedIndex ?? index;
             });
+            widget.onSelected?.call(index);
           },
           selectedColor: Theme.of(context).primaryColor,
           backgroundColor: isDark ? Colors.grey[800] : Colors.grey[100],
