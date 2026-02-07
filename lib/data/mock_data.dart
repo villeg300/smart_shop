@@ -154,10 +154,12 @@ final List<Product> mockCatalog = mockProducts.map((product) {
 }).toList();
 
 final List<User> mockUsers = [
-  const User(
-    id: 'user-001',
-    name: 'Alex Doe',
+  User(
+    id: 1,
+    fullName: 'Alex Doe',
     email: 'alex@example.com',
-    phone: '+22501020304',
+    phoneNumber: '+22501020304',
+    loyaltyPoints: 1,
+    dateJoined: DateTime.parse("2026-02-06T16:30:00Z"),
   ),
 ];
