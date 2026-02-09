@@ -12,9 +12,6 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final variant =
-        product.variants.isNotEmpty ? product.variants.first : null;
-    final oldPrice = variant?.compareAtPrice;
     final storeController = Get.find<StoreController>();
     return Container(
       constraints: BoxConstraints(maxWidth: screenWidth * 0.9),
@@ -42,11 +39,7 @@ class ProductCard extends StatelessWidget {
                 aspectRatio: 16 / 9,
                 child: ClipRRect(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                  child: Image.asset(
-                    product.image,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: _buildProductImage(product.genericImage),
                 ),
               ),
               // bouton de favori
@@ -69,28 +62,6 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (oldPrice != null)
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      "${calculateDiscount(variant!.price, oldPrice)}%",
-                      style: AppTextStyles.withColor(
-                        AppTextStyles.withWeight(
-                          AppTextStyles.bodySmall,
-                          FontWeight.bold,
-                        ),
-                        Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
           Padding(
@@ -116,13 +87,15 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: screenWidth * 0.01),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      variant == null
-                          ? "Prix indisponible"
-                          : "f ${variant.price.toStringAsFixed(0)}",
+                      product.minPrice != null
+                          ? "${product.minPrice!.toStringAsFixed(0)} fcf"
+                          : "Prix indisponible",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.withColor(
                         AppTextStyles.withWeight(
                           AppTextStyles.bodyLarge,
@@ -131,16 +104,6 @@ class ProductCard extends StatelessWidget {
                         Theme.of(context).textTheme.bodyLarge!.color!,
                       ),
                     ),
-                    if (oldPrice != null) ...[
-                      SizedBox(height: screenWidth * 0.01),
-                      Text(
-                        "f ${oldPrice.toStringAsFixed(0)}",
-                        style: AppTextStyles.withColor(
-                          AppTextStyles.bodySmall,
-                          isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                        ).copyWith(decoration: TextDecoration.lineThrough),
-                      ),
-                    ],
                   ],
                 ),
               ],
@@ -151,7 +114,30 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  int calculateDiscount(double currentPrice, double oldPrice) {
-    return (((oldPrice - currentPrice) / oldPrice) * 100).round();
+  Widget _buildProductImage(String? imagePath) {
+    const placeholder = 'assets/images/laptop.jpg';
+    if (imagePath == null || imagePath.isEmpty) {
+      return Image.asset(
+        placeholder,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+
+    final uri = Uri.tryParse(imagePath);
+    final isNetwork =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+
+    if (isNetwork) {
+      return Image.network(
+        imagePath,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Image.asset(placeholder, width: double.infinity, fit: BoxFit.cover),
+      );
+    }
+
+    return Image.asset(imagePath, width: double.infinity, fit: BoxFit.cover);
   }
 }

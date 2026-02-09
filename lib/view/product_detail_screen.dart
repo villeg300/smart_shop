@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/models/product.dart';
-import 'package:smart_shop/models/product_variant.dart';
+import 'package:smart_shop/models/variant.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
 
@@ -18,15 +18,40 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int selectedVariantIndex = 0;
   final StoreController storeController = Get.find<StoreController>();
+  final List<Variant> variants = [];
+  bool isLoadingVariants = false;
 
   Product get product => widget.product;
 
-  ProductVariant? get selectedVariant {
-    if (product.variants.isEmpty) {
+  Variant? get selectedVariant {
+    if (variants.isEmpty) {
       return null;
     }
-    final index = selectedVariantIndex.clamp(0, product.variants.length - 1);
-    return product.variants[index];
+    final index = selectedVariantIndex.clamp(0, variants.length - 1);
+    return variants[index];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVariants();
+  }
+
+  Future<void> _loadVariants() async {
+    setState(() {
+      isLoadingVariants = true;
+    });
+
+    final fetched = await storeController.loadVariantsForProduct(product.id);
+    if (!mounted) return;
+
+    setState(() {
+      variants
+        ..clear()
+        ..addAll(fetched);
+      selectedVariantIndex = 0;
+      isLoadingVariants = false;
+    });
   }
 
   @override
@@ -34,6 +59,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final screenHeight = AppResponsive.screenHeight(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final variant = selectedVariant;
+    final variantDescription =
+        (variant?.description?.trim().isNotEmpty ?? false)
+        ? variant!.description!.trim()
+        : null;
+    final descriptionText = variantDescription ?? product.description;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -91,7 +121,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Theme.of(context).textTheme.headlineMedium!.color!,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 product.category.name,
                 style: AppTextStyles.withColor(
@@ -99,31 +129,104 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   isDark ? Colors.grey[400]! : Colors.grey[600]!,
                 ),
               ),
-              SizedBox(height: spacing),
-              Text(
-                variant == null
-                    ? "Prix indisponible"
-                    : "f ${variant.price.toStringAsFixed(0)}",
-                style: AppTextStyles.withColor(
-                  AppTextStyles.withWeight(
-                    AppTextStyles.bodyLarge,
-                    FontWeight.bold,
-                  ),
-                  Theme.of(context).textTheme.headlineMedium!.color!,
-                ),
+              const SizedBox(height: 10),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
               ),
-              if (variant?.compareAtPrice != null) ...[
-                const SizedBox(height: 6),
+              SizedBox(height: spacing),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      variant == null
+                          ? _withCurrency(product.priceRange)
+                          : _withCurrency(variant.formattedPrice),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.withWeight(
+                          AppTextStyles.bodyLarge,
+                          FontWeight.bold,
+                        ),
+                        Theme.of(context).textTheme.headlineMedium!.color!,
+                      ),
+                    ),
+                  ),
+                  if (variant?.formattedOldPrice != null &&
+                      variant!.formattedOldPrice!.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Text(
+                      _withCurrency(variant.formattedOldPrice!),
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.bodySmall,
+                        isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                      ).copyWith(decoration: TextDecoration.lineThrough),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+              SizedBox(height: spacing),
+              if (variant != null && variant.attributesMap.isNotEmpty) ...[
+                SizedBox(height: spacing),
                 Text(
-                  "f ${variant!.compareAtPrice!.toStringAsFixed(0)}",
+                  "Caracteristiques",
                   style: AppTextStyles.withColor(
-                    AppTextStyles.bodySmall,
-                    isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                  ).copyWith(decoration: TextDecoration.lineThrough),
+                    AppTextStyles.labelMedium,
+                    Theme.of(context).textTheme.bodyLarge!.color!,
+                  ),
+                ),
+                SizedBox(height: spacing / 2),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                    ),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: variant.attributesMap.entries.map((entry) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "${entry.key}: ${entry.value}",
+                          style: AppTextStyles.withColor(
+                            AppTextStyles.bodySmall,
+                            isDark ? Colors.grey[200]! : Colors.grey[800]!,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ],
               SizedBox(height: spacing),
-              if (product.variants.isNotEmpty) ...[
+              if (isLoadingVariants)
+                Padding(
+                  padding: EdgeInsets.only(bottom: spacing),
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              else if (variants.isNotEmpty) ...[
                 Text(
                   "Selectionner une variante",
                   style: AppTextStyles.withColor(
@@ -135,8 +238,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: List.generate(product.variants.length, (index) {
-                    final item = product.variants[index];
+                  children: List.generate(variants.length, (index) {
+                    final item = variants[index];
                     final label = _variantLabel(item);
                     return ChoiceChip(
                       label: Text(label),
@@ -171,7 +274,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               SizedBox(height: spacing / 2),
               Text(
-                product.description,
+                descriptionText,
                 style: AppTextStyles.withColor(
                   AppTextStyles.bodySmall,
                   isDark ? Colors.grey[400]! : Colors.grey[600]!,
@@ -180,19 +283,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           );
 
-          final imagePath = (variant?.image.isNotEmpty ?? false)
+          final imagePath = (variant?.image?.isNotEmpty ?? false)
               ? variant!.image
-              : product.image;
+              : product.genericImage;
 
           final imageWidget = Stack(
             children: [
               AspectRatio(
                 aspectRatio: 16 / 10,
-                child: Image.asset(
-                  imagePath,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: _buildProductImage(imagePath),
               ),
               // Positioned(
               //   right: 8,
@@ -250,7 +349,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: OutlinedButton(
                   onPressed: variant == null
                       ? null
-                      : () => storeController.addToCart(product, variant),
+                      : () => storeController.addToCart(variant),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsetsDirectional.symmetric(
                       vertical: screenHeight * 0.02,
@@ -273,7 +372,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: ElevatedButton(
                   onPressed: variant == null
                       ? null
-                      : () => storeController.addToCart(product, variant),
+                      : () => storeController.addToCart(variant),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsetsDirectional.symmetric(
                       vertical: screenHeight * 0.02,
@@ -320,17 +419,56 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  String _variantLabel(ProductVariant variant) {
-    final parts = <String>[];
-    if (variant.attributes['color'] != null) {
-      parts.add(variant.attributes['color'].toString());
+  Widget _buildProductImage(String? imagePath) {
+    const placeholder = 'assets/images/laptop.jpg';
+    if (imagePath == null || imagePath.isEmpty) {
+      return Image.asset(
+        placeholder,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
     }
-    if (variant.attributes['storage'] != null) {
-      parts.add(variant.attributes['storage'].toString());
+
+    final uri = Uri.tryParse(imagePath);
+    final isNetwork =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+
+    if (isNetwork) {
+      return Image.network(
+        imagePath,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Image.asset(placeholder, width: double.infinity, fit: BoxFit.cover),
+      );
     }
+
+    return Image.asset(imagePath, width: double.infinity, fit: BoxFit.cover);
+  }
+
+  String _variantLabel(Variant variant) {
+    if (variant.attributesDisplay.isNotEmpty) {
+      return variant.attributesDisplay;
+    }
+    final parts = variant.attributesMap.values.toList();
     if (parts.isEmpty) {
-      return variant.sku;
+      return variant.sku ?? variant.id;
     }
     return parts.join(' · ');
+  }
+
+  String _withCurrency(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+    final hasCurrency = RegExp(
+      r'(fcfa|fcf|xaf)',
+      caseSensitive: false,
+    ).hasMatch(trimmed);
+    if (hasCurrency || !RegExp(r'\d').hasMatch(trimmed)) {
+      return trimmed;
+    }
+    return "$trimmed FCFA";
   }
 }

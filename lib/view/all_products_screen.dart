@@ -24,75 +24,109 @@ class AllProductsScreen extends StatelessWidget {
             constraints: BoxConstraints(
               maxWidth: AppResponsive.contentMaxWidth(context),
             ),
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: padding,
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate(
-                      [
-                        const CustomSearchBar(),
-                        SizedBox(height: spacing),
-                        Obx(
-                          () => CategoryChips(
-                            categories: storeController.categoryLabels,
-                            selectedIndex: storeController.indexBySlug(
-                              storeController.selectedCategorySlug.value,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification.metrics.pixels >=
+                    notification.metrics.maxScrollExtent - 200) {
+                  storeController.loadMoreProducts();
+                }
+                return false;
+              },
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: padding,
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate(
+                        [
+                          const CustomSearchBar(),
+                          SizedBox(height: spacing),
+                          const CategoryChips(),
+                          SizedBox(height: spacing),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      padding.left,
+                      0,
+                      padding.right,
+                      padding.bottom,
+                    ),
+                    sliver: Obx(() {
+                      if (storeController.isLoadingProducts.value &&
+                          storeController.filteredProducts.isEmpty) {
+                        return const SliverToBoxAdapter(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: CircularProgressIndicator(),
                             ),
-                            onSelected: (index) {
-                              storeController
-                                  .setCategory(storeController.slugByIndex(index));
-                            },
+                          ),
+                        );
+                      }
+
+                      if (storeController.filteredProducts.isEmpty) {
+                        return const SliverToBoxAdapter(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Text("Aucun produit disponible"),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return SliverGrid(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final product =
+                                storeController.filteredProducts[index];
+                            return GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ProductDetailScreen(product: product),
+                                ),
+                              ),
+                              child: ProductCard(product: product),
+                            );
+                          },
+                          childCount: storeController.filteredProducts.length,
+                        ),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount:
+                              AppResponsive.gridCrossAxisCount(context),
+                          childAspectRatio:
+                              AppResponsive.isMobile(context) ? 0.7 : 0.8,
+                          crossAxisSpacing: AppResponsive.gridSpacing(context),
+                          mainAxisSpacing: AppResponsive.gridSpacing(context),
+                        ),
+                      );
+                    }),
+                  ),
+                  Obx(() {
+                    if (storeController.isLoadingProducts.value &&
+                        storeController.filteredProducts.isNotEmpty) {
+                      return const SliverToBoxAdapter(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: CircularProgressIndicator(),
                           ),
                         ),
-                        SizedBox(height: spacing),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    padding.left,
-                    0,
-                    padding.right,
-                    padding.bottom,
-                  ),
-                  sliver: Obx(
-                    () => SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final product =
-                              storeController.filteredProducts[index];
-                          return GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ProductDetailScreen(product: product),
-                              ),
-                            ),
-                            child: ProductCard(product: product),
-                          );
-                        },
-                        childCount: storeController.filteredProducts.length,
-                      ),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount:
-                            AppResponsive.gridCrossAxisCount(context),
-                        childAspectRatio:
-                            AppResponsive.isMobile(context) ? 0.7 : 0.8,
-                        crossAxisSpacing: AppResponsive.gridSpacing(context),
-                        mainAxisSpacing: AppResponsive.gridSpacing(context),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                      );
+                    }
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
 }

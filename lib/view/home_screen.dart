@@ -45,227 +45,269 @@ class _HomeScreenState extends State<HomeScreen> {
                 constraints: BoxConstraints(
                   maxWidth: AppResponsive.contentMaxWidth(context),
                 ),
-                child: CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: padding,
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate([
-                          // En-tête avec profil utilisateur
-                          Obx(() {
-                            final user = authController.currentUser;
-                            final userName =
-                                user?.fullName.split(' ').first ??
-                                'Utilisateur';
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    if (notification.metrics.pixels >=
+                        notification.metrics.maxScrollExtent - 200) {
+                      storeController.loadMoreProducts();
+                    }
+                    return false;
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: padding,
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            // En-tête avec profil utilisateur
+                            Obx(() {
+                              final user = authController.currentUser;
+                              final userName =
+                                  user?.fullName.split(' ').first ??
+                                  'Utilisateur';
 
-                            return Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).primaryColor.withOpacity(0.1),
-                                  child: user?.avatar != null
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            user!.avatar!,
-                                            width: 40,
-                                            height: 40,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Icon(
-                                              Icons.person,
-                                              color: Theme.of(
-                                                context,
-                                              ).primaryColor,
+                              return Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).primaryColor.withOpacity(0.1),
+                                    child: user?.avatar != null
+                                        ? ClipOval(
+                                            child: Image.network(
+                                              user!.avatar!,
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Icon(
+                                                    Icons.person,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                  ),
                                             ),
+                                          )
+                                        : Icon(
+                                            Icons.person,
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor,
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.person,
-                                          color: Theme.of(context).primaryColor,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _getGreeting(),
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 14,
+                                          ),
                                         ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        Text(
+                                          userName,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Badge points de fidélité
+                                  // if (user != null && user.loyaltyPoints > 0)
+                                  //   Container(
+                                  //     padding: const EdgeInsets.symmetric(
+                                  //       horizontal: 12,
+                                  //       vertical: 6,
+                                  //     ),
+                                  //     decoration: BoxDecoration(
+                                  //       color: Theme.of(
+                                  //         context,
+                                  //       ).primaryColor.withOpacity(0.1),
+                                  //       borderRadius: BorderRadius.circular(20),
+                                  //     ),
+                                  //     child: Row(
+                                  //       mainAxisSize: MainAxisSize.min,
+                                  //       children: [
+                                  //         Icon(
+                                  //           Icons.star,
+                                  //           size: 16,
+                                  //           color: Theme.of(context).primaryColor,
+                                  //         ),
+                                  //         const SizedBox(width: 4),
+                                  //         Text(
+                                  //           '${user.loyaltyPoints}',
+                                  //           style: TextStyle(
+                                  //             color: Theme.of(
+                                  //               context,
+                                  //             ).primaryColor,
+                                  //             fontWeight: FontWeight.bold,
+                                  //             fontSize: 12,
+                                  //           ),
+                                  //         ),
+                                  //       ],
+                                  //     ),
+                                  //   ),
+                                  const SizedBox(width: 8),
+                                  Wrap(
+                                    spacing: 4,
                                     children: [
-                                      Text(
-                                        _getGreeting(),
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 14,
+                                      IconButton(
+                                        onPressed: () {},
+                                        icon: const Icon(
+                                          Icons.notifications_outlined,
                                         ),
                                       ),
-                                      Text(
-                                        userName,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                                      IconButton(
+                                        onPressed: () =>
+                                            Get.to(() => const CartScreen()),
+                                        icon: const Icon(
+                                          Icons.shopping_bag_outlined,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      GetBuilder<ThemeController>(
+                                        builder: (controller) => IconButton(
+                                          onPressed: () =>
+                                              controller.toggleTheme(),
+                                          icon: Icon(
+                                            controller.isDarkMode
+                                                ? Icons.light_mode
+                                                : Icons.dark_mode,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
+                                ],
+                              );
+                            }),
+                            SizedBox(height: spacing),
+                            const CustomSearchBar(),
+                            SizedBox(height: spacing),
+                            const CategoryChips(),
+                            SizedBox(height: spacing),
+                            const SaleBanner(),
+                            SizedBox(height: spacing),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Articles Populaires",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-
-                                // Badge points de fidélité
-                                // if (user != null && user.loyaltyPoints > 0)
-                                //   Container(
-                                //     padding: const EdgeInsets.symmetric(
-                                //       horizontal: 12,
-                                //       vertical: 6,
-                                //     ),
-                                //     decoration: BoxDecoration(
-                                //       color: Theme.of(
-                                //         context,
-                                //       ).primaryColor.withOpacity(0.1),
-                                //       borderRadius: BorderRadius.circular(20),
-                                //     ),
-                                //     child: Row(
-                                //       mainAxisSize: MainAxisSize.min,
-                                //       children: [
-                                //         Icon(
-                                //           Icons.star,
-                                //           size: 16,
-                                //           color: Theme.of(context).primaryColor,
-                                //         ),
-                                //         const SizedBox(width: 4),
-                                //         Text(
-                                //           '${user.loyaltyPoints}',
-                                //           style: TextStyle(
-                                //             color: Theme.of(
-                                //               context,
-                                //             ).primaryColor,
-                                //             fontWeight: FontWeight.bold,
-                                //             fontSize: 12,
-                                //           ),
-                                //         ),
-                                //       ],
-                                //     ),
-                                //   ),
-                                const SizedBox(width: 8),
-                                Wrap(
-                                  spacing: 4,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () {},
-                                      icon: const Icon(
-                                        Icons.notifications_outlined,
-                                      ),
+                                GestureDetector(
+                                  onTap: () =>
+                                      Get.to(() => const AllProductsScreen()),
+                                  child: Text(
+                                    "voir tous",
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
                                     ),
-                                    IconButton(
-                                      onPressed: () =>
-                                          Get.to(() => const CartScreen()),
-                                      icon: const Icon(
-                                        Icons.shopping_bag_outlined,
-                                      ),
-                                    ),
-                                    GetBuilder<ThemeController>(
-                                      builder: (controller) => IconButton(
-                                        onPressed: () =>
-                                            controller.toggleTheme(),
-                                        icon: Icon(
-                                          controller.isDarkMode
-                                              ? Icons.light_mode
-                                              : Icons.dark_mode,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
-                            );
-                          }),
-                          SizedBox(height: spacing),
-                          const CustomSearchBar(),
-                          SizedBox(height: spacing),
-                          Obx(
-                            () => CategoryChips(
-                              categories: storeController.categoryLabels,
-                              selectedIndex: storeController.indexBySlug(
-                                storeController.selectedCategorySlug.value,
-                              ),
-                              onSelected: (index) {
-                                storeController.setCategory(
-                                  storeController.slugByIndex(index),
-                                );
-                              },
                             ),
-                          ),
-                          SizedBox(height: spacing),
-                          const SaleBanner(),
-                          SizedBox(height: spacing),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                "Articles Populaires",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () =>
-                                    Get.to(() => const AllProductsScreen()),
-                                child: Text(
-                                  "voir tous",
-                                  style: TextStyle(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: spacing),
-                        ]),
-                      ),
-                    ),
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(
-                        padding.left,
-                        0,
-                        padding.right,
-                        padding.bottom,
-                      ),
-                      sliver: Obx(
-                        () => SliverGrid(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final product =
-                                  storeController.filteredProducts[index];
-                              return GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ProductDetailScreen(product: product),
-                                  ),
-                                ),
-                                child: ProductCard(product: product),
-                              );
-                            },
-                            childCount: storeController.filteredProducts.length,
-                          ),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount:
-                                    AppResponsive.gridCrossAxisCount(context),
-                                childAspectRatio:
-                                    AppResponsive.isMobile(context) ? 0.7 : 0.8,
-                                crossAxisSpacing: AppResponsive.gridSpacing(
-                                  context,
-                                ),
-                                mainAxisSpacing: AppResponsive.gridSpacing(
-                                  context,
-                                ),
-                              ),
+                            SizedBox(height: spacing),
+                          ]),
                         ),
                       ),
-                    ),
-                  ],
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          padding.left,
+                          0,
+                          padding.right,
+                          padding.bottom,
+                        ),
+                        sliver: Obx(() {
+                          if (storeController.isLoadingProducts.value &&
+                              storeController.filteredProducts.isEmpty) {
+                            return const SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            );
+                          }
+
+                          if (storeController.filteredProducts.isEmpty) {
+                            return const SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32),
+                                  child: Text("Aucun produit disponible"),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return SliverGrid(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final product =
+                                    storeController.filteredProducts[index];
+                                return GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          ProductDetailScreen(product: product),
+                                    ),
+                                  ),
+                                  child: ProductCard(product: product),
+                                );
+                              },
+                              childCount:
+                                  storeController.filteredProducts.length,
+                            ),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      AppResponsive.gridCrossAxisCount(context),
+                                  childAspectRatio:
+                                      AppResponsive.isMobile(context)
+                                      ? 0.7
+                                      : 0.8,
+                                  crossAxisSpacing: AppResponsive.gridSpacing(
+                                    context,
+                                  ),
+                                  mainAxisSpacing: AppResponsive.gridSpacing(
+                                    context,
+                                  ),
+                                ),
+                          );
+                        }),
+                      ),
+                      Obx(() {
+                        if (storeController.isLoadingProducts.value &&
+                            storeController.filteredProducts.isNotEmpty) {
+                          return const SliverToBoxAdapter(
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                          );
+                        }
+                        return const SliverToBoxAdapter(
+                          child: SizedBox.shrink(),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             );

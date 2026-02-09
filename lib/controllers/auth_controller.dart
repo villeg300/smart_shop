@@ -17,6 +17,7 @@ class AuthController extends GetxController {
 
   // Getters
   User? get currentUser => _currentUser.value;
+  Rx<User?> get currentUserRx => _currentUser;
   bool get isLoading => _isLoading.value;
   bool get isFirstTime => _isFirstTime.value;
   bool get isAuthenticated =>
@@ -28,6 +29,7 @@ class AuthController extends GetxController {
 
     // Initialiser l'API client (remplacez par votre URL)
     _apiClient = ApiClient(baseUrl: 'http://192.168.11.173:8000');
+    // _apiClient = ApiClient(baseUrl: 'http://192.168.127.234:8000');
     _authService = AuthService(_apiClient);
 
     // Charger l'état initial
