@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../models/order.dart';
 import 'api_client.dart';
 
@@ -11,7 +12,6 @@ class OrderService {
   Future<List<Order>> fetchOrders({int page = 1}) async {
     try {
       final params = <String, String>{'page': page.toString()};
-
       final uri = Uri.parse(
         '${_client.baseUrl}/api/shop/orders/',
       ).replace(queryParameters: params);
@@ -20,21 +20,35 @@ class OrderService {
         uri.path + (uri.query.isNotEmpty ? '?${uri.query}' : ''),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-        final orders = (data['results'] as List<dynamic>)
-            .map((json) => Order.fromJson(json as Map<String, dynamic>))
-            .toList();
-
-        return orders;
-      } else {
+      if (response.statusCode != 200) {
         throw Exception(
           'Erreur lors du chargement des commandes: ${response.statusCode}',
         );
       }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        return decoded
+            .map((json) => Order.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['results'] is List) {
+          return (decoded['results'] as List<dynamic>)
+              .map((json) => Order.fromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+
+        // fallback si endpoint detail renvoyé accidentellement
+        if (decoded.containsKey('id')) {
+          return [Order.fromJson(decoded)];
+        }
+      }
+
+      throw Exception('Format de reponse commandes inattendu');
     } catch (e) {
-      throw Exception('Erreur réseau lors du chargement des commandes: $e');
+      throw Exception('Erreur reseau lors du chargement des commandes: $e');
     }
   }
 
@@ -47,14 +61,14 @@ class OrderService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return Order.fromJson(data);
       } else if (response.statusCode == 404) {
-        throw Exception('Commande non trouvée');
+        throw Exception('Commande non trouvee');
       } else {
         throw Exception(
           'Erreur lors du chargement de la commande: ${response.statusCode}',
         );
       }
     } catch (e) {
-      throw Exception('Erreur réseau lors du chargement de la commande: $e');
+      throw Exception('Erreur reseau lors du chargement de la commande: $e');
     }
   }
 
@@ -83,33 +97,57 @@ class OrderService {
         throw Exception('Erreur lors de la commande: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Erreur réseau lors de la commande: $e');
+      throw Exception('Erreur reseau lors de la commande: $e');
     }
   }
 
   /// Annuler une commande
+  ///
+  /// Backend actuel: pas d'endpoint /orders/{id}/cancel/ dans les routes publiques.
+  /// On tente d'abord cet endpoint, puis fallback PATCH status=cancelled.
   Future<Order> cancelOrder(String orderId, {String reason = ''}) async {
     try {
-      final body = {'reason': reason};
-
-      final response = await _client.post(
-        '/api/shop/orders/$orderId/cancel/',
-        body,
-      );
+      final response = await _client.post('/api/shop/orders/$orderId/cancel/', {
+        'reason': reason,
+      });
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return Order.fromJson(data);
-      } else if (response.statusCode == 400) {
+      }
+
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        final fallbackPayload = <String, dynamic>{'status': 'cancelled'};
+        if (reason.isNotEmpty) {
+          fallbackPayload['customer_notes'] = reason;
+        }
+
+        final fallbackResponse = await _client.patch(
+          '/api/shop/orders/$orderId/',
+          fallbackPayload,
+        );
+
+        if (fallbackResponse.statusCode == 200) {
+          final data =
+              jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
+          return Order.fromJson(data);
+        }
+
+        throw Exception(
+          'Erreur lors de l\'annulation: ${fallbackResponse.statusCode}',
+        );
+      }
+
+      if (response.statusCode == 400) {
         final error = jsonDecode(response.body);
         throw Exception(
           error['detail'] ?? 'Impossible d\'annuler cette commande',
         );
-      } else {
-        throw Exception('Erreur lors de l\'annulation: ${response.statusCode}');
       }
+
+      throw Exception('Erreur lors de l\'annulation: ${response.statusCode}');
     } catch (e) {
-      throw Exception('Erreur réseau lors de l\'annulation: $e');
+      throw Exception('Erreur reseau lors de l\'annulation: $e');
     }
   }
 

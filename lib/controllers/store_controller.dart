@@ -165,13 +165,12 @@ class StoreController extends GetxController {
         isLoadingCart.value = true;
       }
 
-      final user = _authController.currentUser;
-      if (user == null) {
+      if (_authController.currentUser == null) {
         cart.value = null;
         return;
       }
 
-      final fetchedCart = await _cartService.getOrCreateCart(userId: user.id);
+      final fetchedCart = await _cartService.getOrCreateCart();
 
       cart.value = fetchedCart;
     } catch (e) {

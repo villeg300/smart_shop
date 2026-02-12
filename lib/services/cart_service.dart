@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/rendering.dart';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/cart.dart';
 import 'api_client.dart';
@@ -36,44 +37,38 @@ class CartService {
           return null;
         }
 
-        throw Exception('Réponse panier inattendue: ${decoded.runtimeType}');
+        throw Exception('Reponse panier inattendue: ${decoded.runtimeType}');
       } else if (response.statusCode == 404) {
         return null;
       } else {
-        debugPrint(
-          'fetchCart error ${response.statusCode}: ${response.body}',
-        );
+        debugPrint('fetchCart error ${response.statusCode}: ${response.body}');
         throw Exception(
           'Erreur lors du chargement du panier: ${response.statusCode}',
         );
       }
     } catch (e) {
       debugPrint('fetchCart exception: $e');
-      throw Exception('Erreur réseau lors du chargement du panier: $e');
+      throw Exception('Erreur reseau lors du chargement du panier: $e');
     }
   }
 
-  /// Créer un nouveau panier
-  Future<Cart> createCart({required int userId}) async {
+  /// Créer un panier (idempotent côté backend: 201 si créé, 200 si existant)
+  Future<Cart> createCart() async {
     try {
-      final response = await _client.post('/api/shop/carts/', {
-        'user': userId,
-      });
+      final response = await _client.post('/api/shop/carts/', {});
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return Cart.fromJson(data);
-      } else {
-        debugPrint(
-          'createCart error ${response.statusCode}: ${response.body}',
-        );
-        throw Exception(
-          'Erreur lors de la création du panier: ${response.statusCode}',
-        );
       }
+
+      debugPrint('createCart error ${response.statusCode}: ${response.body}');
+      throw Exception(
+        'Erreur lors de la creation du panier: ${response.statusCode}',
+      );
     } catch (e) {
       debugPrint('createCart exception: $e');
-      throw Exception('Erreur réseau lors de la création du panier: $e');
+      throw Exception('Erreur reseau lors de la creation du panier: $e');
     }
   }
 
@@ -101,22 +96,18 @@ class CartService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return CartItem.fromJson(data);
       } else if (response.statusCode == 400) {
-        debugPrint(
-          'addToCart 400: ${response.body}',
-        );
+        debugPrint('addToCart 400: ${response.body}');
         final error = jsonDecode(response.body);
         throw Exception(error['detail'] ?? 'Erreur lors de l\'ajout au panier');
       } else {
-        debugPrint(
-          'addToCart error ${response.statusCode}: ${response.body}',
-        );
+        debugPrint('addToCart error ${response.statusCode}: ${response.body}');
         throw Exception(
           'Erreur lors de l\'ajout au panier: ${response.statusCode}',
         );
       }
     } catch (e) {
       debugPrint('addToCart exception: $e');
-      throw Exception('Erreur réseau lors de l\'ajout au panier: $e');
+      throw Exception('Erreur reseau lors de l\'ajout au panier: $e');
     }
   }
 
@@ -139,25 +130,20 @@ class CartService {
         body['unit_price'] = unitPrice;
       }
 
-      final response = await _client.put(
-        '/api/shop/cart-items/$itemId/',
-        body,
-      );
+      final response = await _client.put('/api/shop/cart-items/$itemId/', body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return CartItem.fromJson(data);
-      } else {
-        debugPrint(
-          'updateCartItem error ${response.statusCode}: ${response.body}',
-        );
-        throw Exception(
-          'Erreur lors de la mise à jour: ${response.statusCode}',
-        );
       }
+
+      debugPrint(
+        'updateCartItem error ${response.statusCode}: ${response.body}',
+      );
+      throw Exception('Erreur lors de la mise a jour: ${response.statusCode}');
     } catch (e) {
       debugPrint('updateCartItem exception: $e');
-      throw Exception('Erreur réseau lors de la mise à jour: $e');
+      throw Exception('Erreur reseau lors de la mise a jour: $e');
     }
   }
 
@@ -168,29 +154,24 @@ class CartService {
 
       if (response.statusCode == 204) {
         return true;
-      } else {
-        debugPrint(
-          'removeFromCart error ${response.statusCode}: ${response.body}',
-        );
-        throw Exception(
-          'Erreur lors de la suppression: ${response.statusCode}',
-        );
       }
+
+      debugPrint(
+        'removeFromCart error ${response.statusCode}: ${response.body}',
+      );
+      throw Exception('Erreur lors de la suppression: ${response.statusCode}');
     } catch (e) {
       debugPrint('removeFromCart exception: $e');
-      throw Exception('Erreur réseau lors de la suppression: $e');
+      throw Exception('Erreur reseau lors de la suppression: $e');
     }
   }
 
   /// Vider le panier
   Future<bool> clearCart(String cartId) async {
     try {
-      // Récupérer le panier avec ses items
       final cart = await fetchCart();
-
       if (cart == null) return true;
 
-      // Supprimer chaque item
       for (final item in cart.items) {
         await removeFromCart(item.id);
       }
@@ -201,18 +182,12 @@ class CartService {
     }
   }
 
-  /// Obtenir ou créer un panier pour l'utilisateur
-  Future<Cart> getOrCreateCart({required int userId}) async {
+  /// Obtenir ou créer un panier pour l'utilisateur courant
+  Future<Cart> getOrCreateCart() async {
     try {
-      final cart = await fetchCart();
-
-      if (cart != null) {
-        return cart;
-      }
-
-      return await createCart(userId: userId);
+      return await createCart();
     } catch (e) {
-      throw Exception('Erreur lors de la récupération/création du panier: $e');
+      throw Exception('Erreur lors de la recuperation/creation du panier: $e');
     }
   }
 }
