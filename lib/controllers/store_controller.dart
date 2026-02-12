@@ -1,23 +1,24 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
-import '../models/category.dart';
-import '../models/product.dart';
-import '../models/variant.dart';
-import '../models/cart.dart';
-import '../services/catalog_service.dart';
-import '../services/cart_service.dart';
-import '../services/api_client.dart';
+import 'package:smart_shop/models/cart.dart';
+import 'package:smart_shop/models/category.dart';
+import 'package:smart_shop/models/product.dart';
+import 'package:smart_shop/models/variant.dart';
+import 'package:smart_shop/config/app_config.dart';
+import 'package:smart_shop/services/api_client.dart';
+import 'package:smart_shop/services/cart_service.dart';
+import 'package:smart_shop/services/catalog_service.dart';
 import 'auth_controller.dart';
 
 class StoreController extends GetxController {
-  // Services
   late final CatalogService _catalogService;
   late final CartService _cartService;
   late final AuthController _authController;
 
-  // État
   final RxList<Category> categories = <Category>[].obs;
   final RxList<Product> products = <Product>[].obs;
   final RxList<Variant> variants = <Variant>[].obs;
+
   final Rx<Cart?> cart = Rx<Cart?>(null);
 
   final RxString selectedCategorySlug = 'toutes'.obs;
@@ -35,21 +36,19 @@ class StoreController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Initialiser les services
-    final apiClient = ApiClient(baseUrl: 'http://192.168.11.173:8000');
+    final apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _catalogService = CatalogService(apiClient);
     _cartService = CartService(apiClient);
     _authController = Get.find<AuthController>();
 
     ever(_authController.currentUserRx, (user) {
       if (user == null) {
-        _setCart(null);
+        cart.value = null;
         return;
       }
       loadCart();
     });
 
-    // Charger les données initiales
     loadCategories();
     loadProducts();
     if (_authController.currentUser != null) {
@@ -57,22 +56,12 @@ class StoreController extends GetxController {
     }
   }
 
-  void _setCart(Cart? newCart) {
-    cart.value = newCart;
-    cart.refresh();
-  }
-
-  // =========================
-  // CATÉGORIES
-  // =========================
-
   Future<void> loadCategories() async {
     try {
       isLoadingCategories.value = true;
 
       final fetchedCategories = await _catalogService.fetchCategories();
 
-      // Ajouter la catégorie "Toutes" au début
       categories.value = [
         Category(
           name: 'Toutes',
@@ -115,10 +104,6 @@ class StoreController extends GetxController {
     loadProducts();
   }
 
-  // =========================
-  // PRODUITS
-  // =========================
-
   Future<void> loadProducts({bool loadMore = false}) async {
     try {
       if (!loadMore) {
@@ -160,10 +145,6 @@ class StoreController extends GetxController {
 
   List<Product> get filteredProducts => products;
 
-  // =========================
-  // VARIANTES
-  // =========================
-
   Future<List<Variant>> loadVariantsForProduct(String productId) async {
     try {
       final result = await _catalogService.fetchVariants(productId: productId);
@@ -178,24 +159,28 @@ class StoreController extends GetxController {
     }
   }
 
-  // =========================
-  // PANIER
-  // =========================
-
   Future<void> loadCart({bool showLoader = true}) async {
     try {
       if (showLoader) {
         isLoadingCart.value = true;
       }
+
       final user = _authController.currentUser;
       if (user == null) {
-        _setCart(null);
+        cart.value = null;
         return;
       }
+
       final fetchedCart = await _cartService.getOrCreateCart(userId: user.id);
-      _setCart(fetchedCart);
+
+      cart.value = fetchedCart;
     } catch (e) {
-      print(e);
+      debugPrint('Erreur chargement panier: $e');
+      Get.snackbar(
+        'Erreur',
+        'Impossible de charger le panier',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       if (showLoader) {
         isLoadingCart.value = false;
@@ -213,19 +198,19 @@ class StoreController extends GetxController {
         throw Exception('Impossible de créer le panier');
       }
 
-      // Vérifier si l'article existe déjà
       final existingItem = cart.value!.items.firstWhereOrNull(
         (item) => item.variant.id == variant.id,
       );
 
       if (existingItem != null) {
-        // Mettre à jour la quantité
         await _cartService.updateCartItem(
           itemId: existingItem.id,
+          cartId: existingItem.cartId,
+          variantId: existingItem.variant.id,
           quantity: existingItem.quantity + quantity,
+          unitPrice: existingItem.unitPrice,
         );
       } else {
-        // Ajouter nouvel article
         await _cartService.addToCart(
           cartId: cart.value!.id,
           variantId: variant.id,
@@ -234,7 +219,6 @@ class StoreController extends GetxController {
         );
       }
 
-      // Recharger le panier en arrière-plan
       await loadCart(showLoader: false);
 
       Get.snackbar(
@@ -253,12 +237,14 @@ class StoreController extends GetxController {
   }
 
   Future<void> removeFromCart(CartItem item) async {
+    final previousCart = cart.value;
+
     try {
-      final previousCart = cart.value;
       if (previousCart != null) {
         final updatedItems = List<CartItem>.from(previousCart.items)
           ..removeWhere((cartItem) => cartItem.id == item.id);
-        _setCart(previousCart.copyWith(items: updatedItems));
+
+        cart.value = previousCart.copyWith(items: updatedItems);
       }
 
       await _cartService.removeFromCart(item.id);
@@ -270,7 +256,10 @@ class StoreController extends GetxController {
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
-      await loadCart(showLoader: false);
+      if (previousCart != null) {
+        cart.value = previousCart;
+      }
+
       Get.snackbar(
         'Erreur',
         'Impossible de retirer l\'article: $e',
@@ -280,49 +269,62 @@ class StoreController extends GetxController {
   }
 
   Future<void> updateQuantity(CartItem item, int quantity) async {
-    try {
-      if (quantity == item.quantity) return;
-      final previousCart = cart.value;
+    final previousCart = cart.value;
 
+    try {
       if (previousCart != null) {
         final updatedItems = List<CartItem>.from(previousCart.items);
-        final index =
-            updatedItems.indexWhere((cartItem) => cartItem.id == item.id);
+        final index = updatedItems.indexWhere((i) => i.id == item.id);
+
         if (index != -1) {
           if (quantity <= 0) {
             updatedItems.removeAt(index);
           } else {
-            updatedItems[index] =
-                updatedItems[index].copyWith(quantity: quantity);
+            updatedItems[index] = updatedItems[index].copyWith(
+              quantity: quantity,
+            );
           }
-          _setCart(previousCart.copyWith(items: updatedItems));
+
+          cart.value = previousCart.copyWith(items: updatedItems);
         }
       }
 
       if (quantity <= 0) {
         await _cartService.removeFromCart(item.id);
-        return;
+      } else {
+        await _cartService.updateCartItem(
+          itemId: item.id,
+          cartId: item.cartId,
+          variantId: item.variant.id,
+          quantity: quantity,
+          unitPrice: item.unitPrice,
+        );
       }
 
-      await _cartService.updateCartItem(itemId: item.id, quantity: quantity);
-    } catch (e) {
       await loadCart(showLoader: false);
+    } catch (e) {
+      if (previousCart != null) {
+        cart.value = previousCart;
+      }
+
+      debugPrint('Erreur updateQuantity: $e');
       Get.snackbar(
         'Erreur',
-        'Impossible de mettre à jour la quantité: $e',
+        'Impossible de mettre à jour la quantité',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
   }
 
   Future<void> clearCart() async {
+    final previousCart = cart.value;
+
     try {
-      if (cart.value == null) return;
+      if (previousCart == null) return;
 
-      final previousCart = cart.value;
-      _setCart(previousCart?.copyWith(items: []));
+      cart.value = previousCart.copyWith(items: []);
 
-      await _cartService.clearCart(previousCart!.id);
+      await _cartService.clearCart(previousCart.id);
 
       Get.snackbar(
         'Succès',
@@ -331,7 +333,10 @@ class StoreController extends GetxController {
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
-      await loadCart(showLoader: false);
+      if (previousCart != null) {
+        cart.value = previousCart;
+      }
+
       Get.snackbar(
         'Erreur',
         'Impossible de vider le panier: $e',
@@ -339,10 +344,6 @@ class StoreController extends GetxController {
       );
     }
   }
-
-  // =========================
-  // FAVORIS
-  // =========================
 
   bool isFavorite(Product product) {
     return favoriteProductIds.contains(product.id);
@@ -355,10 +356,6 @@ class StoreController extends GetxController {
       favoriteProductIds.add(product.id);
     }
   }
-
-  // =========================
-  // GETTERS
-  // =========================
 
   int get cartItemsCount => cart.value?.itemsCount ?? 0;
 

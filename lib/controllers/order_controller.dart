@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../models/order.dart';
+import '../config/app_config.dart';
 import '../services/order_service.dart';
 import '../services/api_client.dart';
 import 'store_controller.dart';
@@ -18,7 +19,7 @@ class OrderController extends GetxController {
     super.onInit();
 
     // Initialiser le service
-    final apiClient = ApiClient(baseUrl: 'http://192.168.11.173:8000');
+    final apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _orderService = OrderService(apiClient);
 
     // Charger les commandes

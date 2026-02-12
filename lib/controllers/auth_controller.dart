@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:smart_shop/models/user.dart';
+import 'package:smart_shop/config/app_config.dart';
 import 'package:smart_shop/services/api_client.dart';
 import 'package:smart_shop/services/auth_service.dart';
 
@@ -26,10 +27,7 @@ class AuthController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
-    // Initialiser l'API client (remplacez par votre URL)
-    _apiClient = ApiClient(baseUrl: 'http://192.168.11.173:8000');
-    // _apiClient = ApiClient(baseUrl: 'http://192.168.127.234:8000');
+    _apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _authService = AuthService(_apiClient);
 
     // Charger l'état initial

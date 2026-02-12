@@ -123,12 +123,23 @@ class CartService {
   /// Mettre à jour la quantité d'un article
   Future<CartItem> updateCartItem({
     required String itemId,
+    required String cartId,
+    required String variantId,
     required int quantity,
+    double? unitPrice,
   }) async {
     try {
-      final body = {'quantity': quantity};
+      final body = <String, dynamic>{
+        'cart': cartId,
+        'variant_id': variantId,
+        'quantity': quantity,
+      };
 
-      final response = await _client.patch(
+      if (unitPrice != null) {
+        body['unit_price'] = unitPrice;
+      }
+
+      final response = await _client.put(
         '/api/shop/cart-items/$itemId/',
         body,
       );
