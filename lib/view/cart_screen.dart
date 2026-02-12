@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/models/cart.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -13,16 +14,26 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final StoreController controller = Get.find<StoreController>();
+  final StoreController _storeController = Get.find<StoreController>();
+  bool _isCheckoutProcessing = false;
 
-  void _changeQuantity(CartItem item, int newQuantity) {
-    if (newQuantity < 0) return;
+  @override
+  void initState() {
+    super.initState();
+    _storeController.loadCart(showLoader: true);
+  }
 
-    if (newQuantity == 0) {
+  Future<void> _increment(CartItem item) async {
+    await _storeController.updateQuantity(item, item.quantity + 1);
+  }
+
+  Future<void> _decrement(CartItem item) async {
+    final nextQuantity = item.quantity - 1;
+    if (nextQuantity <= 0) {
       _confirmRemove(item);
-    } else {
-      controller.updateQuantity(item, newQuantity);
+      return;
     }
+    await _storeController.updateQuantity(item, nextQuantity);
   }
 
   void _confirmRemove(CartItem item) {
@@ -33,9 +44,9 @@ class _CartScreenState extends State<CartScreen> {
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Annuler')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Get.back();
-              controller.removeFromCart(item);
+              await _storeController.removeFromCart(item);
             },
             child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
           ),
@@ -44,13 +55,44 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  Future<void> _checkout() async {
+    if (_isCheckoutProcessing || _storeController.isCartBusy) {
+      return;
+    }
+
+    setState(() {
+      _isCheckoutProcessing = true;
+    });
+
+    try {
+      final orderController = Get.isRegistered<OrderController>()
+          ? Get.find<OrderController>()
+          : Get.put(OrderController());
+
+      final success = await orderController.placeOrder(
+        shippingCost: 0,
+        customerNotes: '',
+      );
+
+      if (success) {
+        await _storeController.loadCart(showLoader: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckoutProcessing = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final padding = AppResponsive.pagePadding(context);
     final spacing = AppResponsive.sectionSpacing(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Panier")),
+      appBar: AppBar(title: const Text('Panier')),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -62,17 +104,14 @@ class _CartScreenState extends State<CartScreen> {
               padding: padding,
               child: Column(
                 children: [
-                  // 🔥 CORRECTION 1: Utiliser Obx au lieu de GetBuilder
                   Expanded(
                     child: Obx(() {
-                      // Loader
-                      if (controller.isLoadingCart.value) {
+                      if (_storeController.isLoadingCart.value) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      // Panier vide
-                      final cart = controller.cart.value;
-                      final items = cart?.items ?? [];
+                      final cart = _storeController.cart.value;
+                      final items = cart?.items ?? const <CartItem>[];
 
                       if (items.isEmpty) {
                         return Center(
@@ -86,7 +125,7 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                "Votre panier est vide",
+                                'Votre panier est vide',
                                 style: AppTextStyles.bodyLarge,
                               ),
                             ],
@@ -94,10 +133,12 @@ class _CartScreenState extends State<CartScreen> {
                         );
                       }
 
-                      // Liste des items
+                      final disableActions = _storeController.isCartBusy;
+
                       return ListView.separated(
                         itemCount: items.length,
-                        separatorBuilder: (_, __) => SizedBox(height: spacing),
+                        separatorBuilder: (context, index) =>
+                            SizedBox(height: spacing),
                         itemBuilder: (context, index) {
                           final item = items[index];
 
@@ -108,7 +149,7 @@ class _CartScreenState extends State<CartScreen> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withValues(alpha: 0.05),
                                   blurRadius: 10,
                                   offset: const Offset(0, 2),
                                 ),
@@ -116,7 +157,6 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                             child: Row(
                               children: [
-                                // Image
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: _buildVariantImage(
@@ -125,8 +165,6 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                 ),
                                 SizedBox(width: spacing),
-
-                                // Infos produit
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -152,7 +190,7 @@ class _CartScreenState extends State<CartScreen> {
                                         ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        "${item.variant.formattedPrice} FCFA",
+                                        '${item.variant.formattedPrice} FCFA',
                                         style: AppTextStyles.withWeight(
                                           AppTextStyles.bodyMedium,
                                           FontWeight.w700,
@@ -161,23 +199,15 @@ class _CartScreenState extends State<CartScreen> {
                                     ],
                                   ),
                                 ),
-
-                                // Contrôles quantité
                                 Column(
                                   children: [
-                                    
                                     IconButton(
-                                      onPressed: () {
-                                        _changeQuantity(
-                                          item,
-                                          item.quantity + 1,
-                                        );
-                                      },
+                                      onPressed: disableActions
+                                          ? null
+                                          : () => _increment(item),
                                       icon: const Icon(Icons.add_circle),
                                       color: Theme.of(context).primaryColor,
                                     ),
-
-                                    // Affichage quantité
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -197,15 +227,10 @@ class _CartScreenState extends State<CartScreen> {
                                         ),
                                       ),
                                     ),
-
-                                    // 🔥 CORRECTION 3: Bouton - avec icône delete si qty=1
                                     IconButton(
-                                      onPressed: () {
-                                        _changeQuantity(
-                                          item,
-                                          item.quantity - 1,
-                                        );
-                                      },
+                                      onPressed: disableActions
+                                          ? null
+                                          : () => _decrement(item),
                                       icon: Icon(
                                         item.quantity == 1
                                             ? Icons.delete
@@ -227,29 +252,30 @@ class _CartScreenState extends State<CartScreen> {
 
                   SizedBox(height: spacing),
 
-                  // 🔥 CORRECTION 4: Total avec Obx
                   Obx(() {
-                    final cart = controller.cart.value;
+                    final cart = _storeController.cart.value;
 
                     if (cart == null || cart.isEmpty) {
                       return const SizedBox.shrink();
                     }
 
+                    final checkoutBusy =
+                        _storeController.isCartBusy || _isCheckoutProcessing;
+
                     return Column(
                       children: [
-                        // Total
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Total",
+                              'Total',
                               style: AppTextStyles.withWeight(
                                 AppTextStyles.bodyLarge,
                                 FontWeight.w600,
                               ),
                             ),
                             Text(
-                              "${controller.formattedCartTotal} FCFA",
+                              '${_storeController.formattedCartTotal} FCFA',
                               style: AppTextStyles.withWeight(
                                 AppTextStyles.bodyLarge,
                                 FontWeight.w700,
@@ -260,13 +286,10 @@ class _CartScreenState extends State<CartScreen> {
 
                         SizedBox(height: spacing),
 
-                        // Bouton Commander
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: Navigation vers checkout
-                            },
+                            onPressed: checkoutBusy ? null : _checkout,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(context).primaryColor,
                               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -275,7 +298,9 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                             child: Text(
-                              "Passer la commande",
+                              checkoutBusy
+                                  ? 'Traitement...'
+                                  : 'Passer la commande',
                               style: AppTextStyles.withColor(
                                 AppTextStyles.buttonMedium,
                                 Colors.white,
@@ -333,7 +358,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
           );
         },
-        errorBuilder: (_, __, ___) => Image.asset(
+        errorBuilder: (context, error, stackTrace) => Image.asset(
           placeholder,
           width: size,
           height: size,

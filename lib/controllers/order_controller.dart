@@ -96,7 +96,7 @@ class OrderController extends GetxController {
       orders.insert(0, order);
 
       // Recharger le panier (qui devrait être vide maintenant)
-      await storeController.loadCart();
+      await storeController.loadCart(showLoader: false);
 
       Get.snackbar(
         'Succès',

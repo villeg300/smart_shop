@@ -63,15 +63,6 @@ class CartItem {
   @override
   String toString() =>
       'CartItem(variant: ${variant.displayName}, qty: $quantity)';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is CartItem && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
 }
 
 class Cart {
@@ -157,13 +148,4 @@ class Cart {
   @override
   String toString() =>
       'Cart(id: $id, items: ${items.length}, total: $formattedTotal)';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Cart && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
 }
