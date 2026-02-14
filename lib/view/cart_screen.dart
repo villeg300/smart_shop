@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/models/cart.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/checkout_confirmation_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -15,7 +15,6 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final StoreController _storeController = Get.find<StoreController>();
-  bool _isCheckoutProcessing = false;
 
   @override
   void initState() {
@@ -136,34 +135,10 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _checkout() async {
-    if (_isCheckoutProcessing || _storeController.isCartBusy) {
+    if (_storeController.isCartBusy) {
       return;
     }
-
-    setState(() {
-      _isCheckoutProcessing = true;
-    });
-
-    try {
-      final orderController = Get.isRegistered<OrderController>()
-          ? Get.find<OrderController>()
-          : Get.put(OrderController());
-
-      final success = await orderController.placeOrder(
-        shippingCost: 0,
-        customerNotes: '',
-      );
-
-      if (success) {
-        await _storeController.loadCart(showLoader: true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckoutProcessing = false;
-        });
-      }
-    }
+    Get.to(() => const CheckoutConfirmationScreen());
   }
 
   @override
@@ -267,7 +242,7 @@ class _CartScreenState extends State<CartScreen> {
                                 // SizedBox(width: spacing),
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.only(left: 12),
                                     child: Column(
                                       children: [
                                         Row(
@@ -395,8 +370,7 @@ class _CartScreenState extends State<CartScreen> {
                       return const SizedBox.shrink();
                     }
 
-                    final checkoutBusy =
-                        _storeController.isCartBusy || _isCheckoutProcessing;
+                    final checkoutBusy = _storeController.isCartBusy;
 
                     return Container(
                       padding: const EdgeInsets.all(24),

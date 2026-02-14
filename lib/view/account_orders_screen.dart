@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
+import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/home_screen.dart';
 
 class AccountOrdersScreen extends StatefulWidget {
   const AccountOrdersScreen({super.key});
@@ -85,24 +87,98 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
   }
 
   Future<void> _confirmCancel(Order order) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await Get.dialog<bool>(
       AlertDialog(
-        title: const Text('Annuler la commande'),
-        content: const Text('Confirmez-vous l\'annulation de cette commande ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text(
-              'Oui, annuler',
-              style: TextStyle(color: Colors.red),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[400]!.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.cancel_outlined,
+                size: 32,
+                color: Colors.red[400],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              "Annuler la commande",
+              style: AppTextStyles.withColor(
+                AppTextStyles.h3,
+                Theme.of(context).textTheme.bodyLarge!.color!,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Etes-vous sûr de vouloir annuler cette commande ?",
+              textAlign: TextAlign.center,
+              style: AppTextStyles.withColor(
+                AppTextStyles.bodyMedium,
+                isDark ? Colors.grey[400]! : Colors.grey[600]!,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Get.back(result: false),
+
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge!.color,
+                      side: BorderSide(
+                        color: isDark ? Colors.white70 : Colors.black12,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Non',
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.buttonMedium,
+                        Theme.of(context).textTheme.bodyLarge!.color!,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Get.back(result: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[400],
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Oui, annuler',
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.buttonMedium,
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
+      barrierColor: Colors.black54,
     );
 
     if (confirm == true) {
@@ -177,7 +253,19 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
     final spacing = AppResponsive.sectionSpacing(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes commandes')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () {
+            if (Get.key.currentState?.canPop() ?? false) {
+              Get.back();
+            } else {
+              Get.offAll(() => const HomeScreen());
+            }
+          },
+        ),
+        title: const Text('Mes commandes'),
+      ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -298,7 +386,9 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 6),
-                                    Text('Date: ${_formatDate(order.createdAt)}'),
+                                    Text(
+                                      'Date: ${_formatDate(order.createdAt)}',
+                                    ),
                                     Text('Articles: ${order.itemsCount}'),
                                     Text('Total: ${order.formattedTotal} FCFA'),
                                     if (order.canBeCancelled) ...[
@@ -306,7 +396,8 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
                                       Align(
                                         alignment: Alignment.centerRight,
                                         child: TextButton.icon(
-                                          onPressed: () => _confirmCancel(order),
+                                          onPressed: () =>
+                                              _confirmCancel(order),
                                           icon: const Icon(
                                             Icons.cancel_outlined,
                                             size: 18,

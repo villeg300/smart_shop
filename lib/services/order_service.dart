@@ -75,12 +75,16 @@ class OrderService {
   /// Passer une commande (checkout)
   Future<Order> checkout({
     required String cartId,
+    required String pickupDate,
+    required String pickupTime,
     double shippingCost = 0,
     String customerNotes = '',
   }) async {
     try {
       final body = {
         'cart_id': cartId,
+        'pickup_date': pickupDate,
+        'pickup_time': pickupTime,
         'shipping_cost': shippingCost,
         'customer_notes': customerNotes,
       };

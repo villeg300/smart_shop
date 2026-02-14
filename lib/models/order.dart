@@ -103,6 +103,8 @@ class Order {
   final double discountAmount;
   final double totalAmount;
   final String customerNotes;
+  final String? pickupDate;
+  final String? pickupTime;
   final String adminNotes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -127,6 +129,8 @@ class Order {
     required this.discountAmount,
     required this.totalAmount,
     this.customerNotes = '',
+    this.pickupDate,
+    this.pickupTime,
     this.adminNotes = '',
     required this.createdAt,
     required this.updatedAt,
@@ -157,6 +161,8 @@ class Order {
       discountAmount: double.parse(json['discount_amount'].toString()),
       totalAmount: double.parse(json['total_amount'].toString()),
       customerNotes: json['customer_notes'] as String? ?? '',
+      pickupDate: json['pickup_date']?.toString(),
+      pickupTime: json['pickup_time']?.toString(),
       adminNotes: json['admin_notes'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -190,6 +196,8 @@ class Order {
       'discount_amount': discountAmount,
       'total_amount': totalAmount,
       'customer_notes': customerNotes,
+      'pickup_date': pickupDate,
+      'pickup_time': pickupTime,
       'admin_notes': adminNotes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -219,6 +227,8 @@ class Order {
     double? discountAmount,
     double? totalAmount,
     String? customerNotes,
+    String? pickupDate,
+    String? pickupTime,
     String? adminNotes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -241,6 +251,8 @@ class Order {
       discountAmount: discountAmount ?? this.discountAmount,
       totalAmount: totalAmount ?? this.totalAmount,
       customerNotes: customerNotes ?? this.customerNotes,
+      pickupDate: pickupDate ?? this.pickupDate,
+      pickupTime: pickupTime ?? this.pickupTime,
       adminNotes: adminNotes ?? this.adminNotes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

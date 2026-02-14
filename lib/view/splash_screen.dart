@@ -28,15 +28,15 @@ class _SplashScreenState extends State<SplashScreen> {
     // Vérifier l'état d'authentification
     if (authController.isFirstTime) {
       // Première utilisation de l'app
-      Get.off(() => const OnboardingScreen());
+      Get.offAll(() => const OnboardingScreen());
     } else if (authController.isAuthenticated) {
       // Utilisateur déjà connecté avec tokens valides
       // Charger le profil utilisateur
       await authController.loadCurrentUser();
-      Get.off(() => const MainScreen());
+      Get.offAll(() => const MainScreen());
     } else {
       // Utilisateur non connecté
-      Get.off(() => const SigninScreen());
+      Get.offAll(() => const SigninScreen());
     }
   }
 

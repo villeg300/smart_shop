@@ -65,6 +65,8 @@ class OrderController extends GetxController {
   // =========================
 
   Future<bool> placeOrder({
+    required String pickupDate,
+    required String pickupTime,
     double shippingCost = 0,
     String customerNotes = '',
   }) async {
@@ -87,6 +89,8 @@ class OrderController extends GetxController {
       // Passer la commande
       final order = await _orderService.checkout(
         cartId: cart.id,
+        pickupDate: pickupDate,
+        pickupTime: pickupTime,
         shippingCost: shippingCost,
         customerNotes: customerNotes,
       );
