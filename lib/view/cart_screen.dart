@@ -37,21 +37,101 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _confirmRemove(CartItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Get.dialog(
       AlertDialog(
-        title: const Text('Supprimer l\'article'),
-        content: const Text('Voulez-vous retirer cet article du panier ?'),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () async {
-              Get.back();
-              await _storeController.removeFromCart(item);
-            },
-            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[400]!.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.delete_outline,
+                size: 32,
+                color: Colors.red[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Supprimer ${item.variant.product.name}",
+              style: AppTextStyles.withColor(
+                AppTextStyles.h3,
+                Theme.of(context).textTheme.bodyLarge!.color!,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Etes-vous sûr de vouloir supprimer cet item du panier ?",
+              textAlign: TextAlign.center,
+              style: AppTextStyles.withColor(
+                AppTextStyles.bodyMedium,
+                isDark ? Colors.grey[400]! : Colors.grey[600]!,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Get.back(),
+
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge!.color,
+                      side: BorderSide(
+                        color: isDark ? Colors.white70 : Colors.black12,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Annuler',
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.buttonMedium,
+                        Theme.of(context).textTheme.bodyLarge!.color!,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Get.back();
+                      await _storeController.removeFromCart(item);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[400],
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Supprimer',
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.buttonMedium,
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
+      barrierColor: Colors.black54,
     );
   }
 
@@ -88,11 +168,27 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final padding = AppResponsive.pagePadding(context);
     final spacing = AppResponsive.sectionSpacing(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Panier')),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Get.back(),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
+        title: Text(
+          'Mon Panier',
+          style: AppTextStyles.withColor(
+            AppTextStyles.h3,
+            isDark ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -143,14 +239,16 @@ class _CartScreenState extends State<CartScreen> {
                           final item = items[index];
 
                           return Container(
-                            padding: EdgeInsets.all(spacing),
+                            // padding: EdgeInsets.all(spacing),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 10,
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.2)
+                                      : Colors.grey.withValues(alpha: 0.1),
+                                  blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
@@ -158,89 +256,127 @@ class _CartScreenState extends State<CartScreen> {
                             child: Row(
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.horizontal(
+                                    left: Radius.circular(16),
+                                  ),
                                   child: _buildVariantImage(
                                     item.variant.image,
-                                    size: 80,
+                                    size: 100,
                                   ),
                                 ),
-                                SizedBox(width: spacing),
+                                // SizedBox(width: spacing),
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.variant.product.name,
-                                        style: AppTextStyles.withWeight(
-                                          AppTextStyles.bodyLarge,
-                                          FontWeight.w600,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                item.variant.product.name,
+                                                style: AppTextStyles.withColor(
+                                                  AppTextStyles.bodyLarge,
+                                                  Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyLarge!.color!,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: disableActions
+                                                  ? null
+                                                  : () => _confirmRemove(item),
+                                              icon: Icon(
+                                                Icons.delete_outline,
+                                                color: Colors.red[400],
+                                              ),
+                                              tooltip: 'Supprimer',
+                                            ),
+                                          ],
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      if (item.variant.sku != null)
-                                        Text(
-                                          item.variant.sku!,
-                                          style: AppTextStyles.withColor(
-                                            AppTextStyles.bodySmall,
-                                            Colors.grey[600]!,
-                                          ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '${item.variant.formattedPrice} f',
+                                              style: AppTextStyles.withColor(
+                                                AppTextStyles.h3,
+                                                Theme.of(context).primaryColor,
+                                              ),
+                                            ),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                color: Theme.of(context)
+                                                    .primaryColor
+                                                    .withValues(alpha: 0.1),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 2,
+                                                    vertical: 2,
+                                                  ),
+                                              child: Row(
+                                                children: [
+                                                  IconButton(
+                                                    onPressed: disableActions
+                                                        ? null
+                                                        : () =>
+                                                              _decrement(item),
+                                                    icon: Icon(
+                                                      Icons.remove,
+                                                      size: 20,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).primaryColor,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    item.quantity.toString(),
+                                                    style:
+                                                        AppTextStyles.withColor(
+                                                          AppTextStyles
+                                                              .bodyLarge,
+                                                          Theme.of(
+                                                            context,
+                                                          ).primaryColor,
+                                                        ),
+                                                  ),
+                                                  IconButton(
+                                                    onPressed: disableActions
+                                                        ? null
+                                                        : () =>
+                                                              _increment(item),
+                                                    icon: Icon(
+                                                      Icons.add,
+                                                      size: 20,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).primaryColor,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 28,
+                                                          minHeight: 28,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '${item.variant.formattedPrice} FCFA',
-                                        style: AppTextStyles.withWeight(
-                                          AppTextStyles.bodyMedium,
-                                          FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Column(
-                                  children: [
-                                    IconButton(
-                                      onPressed: disableActions
-                                          ? null
-                                          : () => _increment(item),
-                                      icon: const Icon(Icons.add_circle),
-                                      color: Theme.of(context).primaryColor,
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        item.quantity.toString(),
-                                        style: AppTextStyles.withWeight(
-                                          AppTextStyles.bodyMedium,
-                                          FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: disableActions
-                                          ? null
-                                          : () => _decrement(item),
-                                      icon: Icon(
-                                        item.quantity == 1
-                                            ? Icons.delete
-                                            : Icons.remove_circle,
-                                      ),
-                                      color: item.quantity == 1
-                                          ? Colors.red
-                                          : Theme.of(context).primaryColor,
-                                    ),
-                                  ],
                                 ),
                               ],
                             ),
@@ -262,53 +398,72 @@ class _CartScreenState extends State<CartScreen> {
                     final checkoutBusy =
                         _storeController.isCartBusy || _isCheckoutProcessing;
 
-                    return Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total',
-                              style: AppTextStyles.withWeight(
-                                AppTextStyles.bodyLarge,
-                                FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '${_storeController.formattedCartTotal} FCFA',
-                              style: AppTextStyles.withWeight(
-                                AppTextStyles.bodyLarge,
-                                FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                    return Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(24),
                         ),
-
-                        SizedBox(height: spacing),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: checkoutBusy ? null : _checkout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Total${cart.itemsCount > 1 ? ' (${cart.itemsCount} items)' : ''}',
+                                style: AppTextStyles.withColor(
+                                  AppTextStyles.bodyLarge,
+                                  Theme.of(context).textTheme.bodyLarge!.color!,
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              checkoutBusy
-                                  ? 'Traitement...'
-                                  : 'Passer la commande',
-                              style: AppTextStyles.withColor(
-                                AppTextStyles.buttonMedium,
-                                Colors.white,
+                              Text(
+                                '${_storeController.formattedCartTotal} FCFA',
+                                style: AppTextStyles.withColor(
+                                  AppTextStyles.h2,
+                                  Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: spacing),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: checkoutBusy ? null : _checkout,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).primaryColor,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                checkoutBusy
+                                    ? 'Traitement...'
+                                    : 'Passer la commande',
+                                style: AppTextStyles.withColor(
+                                  AppTextStyles.buttonMedium,
+                                  Colors.white,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   }),
                 ],
