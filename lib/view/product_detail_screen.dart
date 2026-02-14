@@ -6,6 +6,7 @@ import 'package:smart_shop/models/product.dart';
 import 'package:smart_shop/models/variant.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/cart_screen.dart';
 import 'package:smart_shop/view/widgets/cart_floating_action_button.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -393,7 +394,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: ElevatedButton(
                   onPressed: variant == null
                       ? null
-                      : () => storeController.addToCart(variant),
+                      : () {
+                          storeController.addToCart(variant);
+                          Get.to(() => const CartScreen());
+                        },
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsetsDirectional.symmetric(
                       vertical: screenHeight * 0.02,

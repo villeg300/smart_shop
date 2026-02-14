@@ -3,6 +3,9 @@ import 'package:get/get.dart';
 import 'package:smart_shop/controllers/auth_controller.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/account_change_password_screen.dart';
+import 'package:smart_shop/view/account_orders_screen.dart';
+import 'package:smart_shop/view/account_settings_screen.dart';
 import 'package:smart_shop/view/edit_profile_screen.dart';
 import 'package:smart_shop/view/signin_screen.dart';
 
@@ -187,13 +190,7 @@ class AccountScreen extends StatelessWidget {
                       _AccountTile(
                         icon: Icons.shopping_bag_outlined,
                         title: "Mes commandes",
-                        onTap: () {
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'Cette fonctionnalité sera disponible prochainement',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
+                        onTap: () => Get.to(() => const AccountOrdersScreen()),
                       ),
 
                       // _AccountTile(
@@ -210,24 +207,14 @@ class AccountScreen extends StatelessWidget {
                       _AccountTile(
                         icon: Icons.lock_outline,
                         title: "Changer le mot de passe",
-                        onTap: () {
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'Cette fonctionnalité sera disponible prochainement',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
+                        onTap: () => Get.to(
+                          () => const AccountChangePasswordScreen(),
+                        ),
                       ),
                       _AccountTile(
                         icon: Icons.settings_outlined,
                         title: "Paramètres",
-                        onTap: () {
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'Cette fonctionnalité sera disponible prochainement',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
+                        onTap: () => Get.to(() => const AccountSettingsScreen()),
                       ),
                       const Divider(height: 32),
                       _AccountTile(

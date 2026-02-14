@@ -66,8 +66,8 @@ class OrderItem {
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
-      id: json['id'] as String,
-      orderId: json['order'] as String,
+      id: json['id'].toString(),
+      orderId: json['order'].toString(),
       variant: json['variant'] != null
           ? Variant.fromJson(json['variant'] as Map<String, dynamic>)
           : null,
@@ -149,8 +149,8 @@ class Order {
         [];
 
     return Order(
-      id: json['id'] as String,
-      userId: json['user'] as String,
+      id: json['id'].toString(),
+      userId: json['user'].toString(),
       status: OrderStatus.fromString(json['status'] as String),
       subtotal: double.parse(json['subtotal'].toString()),
       shippingCost: double.parse(json['shipping_cost'].toString()),
