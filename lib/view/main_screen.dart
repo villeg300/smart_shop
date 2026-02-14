@@ -5,6 +5,7 @@ import 'package:smart_shop/controllers/theme_controller.dart';
 import 'package:smart_shop/view/account_screen.dart';
 import 'package:smart_shop/view/home_screen.dart';
 import 'package:smart_shop/view/shopping_screen.dart';
+import 'package:smart_shop/view/widgets/cart_floating_action_button.dart';
 import 'package:smart_shop/view/widgets/custom_bottom_nav_bar.dart';
 import 'package:smart_shop/view/wishlist_screen.dart';
 
@@ -18,6 +19,9 @@ class MainScreen extends StatelessWidget {
     return GetBuilder<ThemeController>(
       builder: (themeController) => Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        floatingActionButton: const CartFloatingActionButton(
+          heroTag: 'main_cart_fab',
+        ),
         body: AnimatedSwitcher(
           duration: Duration(milliseconds: 200),
           child: Obx(

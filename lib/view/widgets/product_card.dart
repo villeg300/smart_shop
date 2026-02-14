@@ -42,6 +42,42 @@ class ProductCard extends StatelessWidget {
                   child: _buildProductImage(product.genericImage),
                 ),
               ),
+              // icon si l'une des variantes du produit est en promotion
+              if (product.hasPromotion)
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.local_offer_rounded,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Promo',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               // bouton de favori
               Positioned(
                 right: 8,
@@ -53,11 +89,7 @@ class ProductCard extends StatelessWidget {
                       storeController.isFavorite(product)
                           ? Icons.favorite
                           : Icons.favorite_border,
-                      color: storeController.isFavorite(product)
-                          ? Theme.of(context).primaryColor
-                          : isDark
-                          ? Colors.grey[400]
-                          : Colors.grey,
+                      color: Theme.of(context).primaryColor,
                     ),
                   ),
                 ),

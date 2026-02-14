@@ -19,6 +19,7 @@ class Product {
   final String priceRange;
   final int totalStock;
   final bool isInStock;
+  final bool hasPromotion;
 
   Product({
     required this.id,
@@ -37,6 +38,7 @@ class Product {
     required this.priceRange,
     required this.totalStock,
     required this.isInStock,
+    this.hasPromotion = false,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class Product {
       priceRange: json['price_range'] as String? ?? 'Prix non disponible',
       totalStock: json['total_stock'] as int? ?? 0,
       isInStock: json['is_in_stock'] as bool? ?? false,
+      hasPromotion: json['has_promotion'] as bool? ?? false,
     );
   }
 
@@ -82,6 +85,7 @@ class Product {
       'price_range': priceRange,
       'total_stock': totalStock,
       'is_in_stock': isInStock,
+      'has_promotion': hasPromotion,
     };
   }
 
@@ -104,6 +108,7 @@ class Product {
     String? priceRange,
     int? totalStock,
     bool? isInStock,
+    bool? hasPromotion,
   }) {
     return Product(
       id: id ?? this.id,
@@ -122,6 +127,7 @@ class Product {
       priceRange: priceRange ?? this.priceRange,
       totalStock: totalStock ?? this.totalStock,
       isInStock: isInStock ?? this.isInStock,
+      hasPromotion: hasPromotion ?? this.hasPromotion,
     );
   }
 

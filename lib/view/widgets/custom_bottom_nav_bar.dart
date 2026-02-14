@@ -20,12 +20,12 @@ class CustomBottomNavBar extends StatelessWidget {
             label: "Accueil",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag_outlined),
-            label: "Shopping",
+            icon: Icon(Icons.storefront_outlined),
+            label: "Boutique",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite_outlined),
-            label: "Wishlist",
+            label: "Favoris",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

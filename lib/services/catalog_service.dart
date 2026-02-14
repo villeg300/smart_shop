@@ -45,6 +45,7 @@ class CatalogService {
 
   /// Récupérer les produits avec filtres optionnels
   Future<Map<String, dynamic>> fetchProducts({
+    String? query,
     String? categorySlug,
     double? minPrice,
     double? maxPrice,
@@ -56,6 +57,9 @@ class CatalogService {
       // Construire les paramètres de requête
       final params = <String, String>{'page': page.toString()};
 
+      if (query != null && query.trim().isNotEmpty) {
+        params['q'] = query.trim();
+      }
       if (categorySlug != null &&
           categorySlug.isNotEmpty &&
           categorySlug != 'toutes') {

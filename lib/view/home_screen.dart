@@ -5,7 +5,6 @@ import 'package:smart_shop/controllers/store_controller.dart';
 import 'package:smart_shop/controllers/theme_controller.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/view/all_products_screen.dart';
-import 'package:smart_shop/view/cart_screen.dart';
 import 'package:smart_shop/view/product_detail_screen.dart';
 import 'package:smart_shop/view/widgets/category_chips.dart';
 import 'package:smart_shop/view/widgets/custom_search_bar.dart';
@@ -164,13 +163,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         onPressed: () {},
                                         icon: const Icon(
                                           Icons.notifications_outlined,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () =>
-                                            Get.to(() => const CartScreen()),
-                                        icon: const Icon(
-                                          Icons.shopping_bag_outlined,
                                         ),
                                       ),
                                       GetBuilder<ThemeController>(

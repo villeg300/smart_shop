@@ -185,8 +185,8 @@ class AccountScreen extends StatelessWidget {
 
                       // Menu
                       _AccountTile(
-                        icon: Icons.location_on_outlined,
-                        title: "Adresses de livraison",
+                        icon: Icons.shopping_bag_outlined,
+                        title: "Mes commandes",
                         onTap: () {
                           Get.snackbar(
                             'Bientôt disponible',
@@ -195,28 +195,18 @@ class AccountScreen extends StatelessWidget {
                           );
                         },
                       ),
-                      _AccountTile(
-                        icon: Icons.history,
-                        title: "Historique des commandes",
-                        onTap: () {
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'Cette fonctionnalité sera disponible prochainement',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
-                      ),
-                      _AccountTile(
-                        icon: Icons.payment_outlined,
-                        title: "Moyens de paiement",
-                        onTap: () {
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'Cette fonctionnalité sera disponible prochainement',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
-                      ),
+
+                      // _AccountTile(
+                      //   icon: Icons.payment_outlined,
+                      //   title: "Moyens de paiement",
+                      //   onTap: () {
+                      //     Get.snackbar(
+                      //       'Bientôt disponible',
+                      //       'Cette fonctionnalité sera disponible prochainement',
+                      //       snackPosition: SnackPosition.BOTTOM,
+                      //     );
+                      //   },
+                      // ),
                       _AccountTile(
                         icon: Icons.lock_outline,
                         title: "Changer le mot de passe",

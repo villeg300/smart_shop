@@ -6,6 +6,7 @@ import 'package:smart_shop/models/product.dart';
 import 'package:smart_shop/models/variant.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/widgets/cart_floating_action_button.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -64,6 +65,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ? variant!.description!.trim()
         : null;
     final descriptionText = variantDescription ?? product.description;
+    final promotionBadgeText = _promotionBadgeText(variant);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -74,6 +76,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         actions: [
+          // IconButton(
+          //   onPressed: () => Get.to(() => const CartScreen()),
+          //   icon: const Icon(Icons.shopping_bag_outlined),
+          // ),
           IconButton(
             onPressed: () =>
                 _shareProduct(context, product.name, product.description),
@@ -82,21 +88,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               color: isDark ? Colors.white : Colors.black,
             ),
           ),
-          Obx(
-            () => IconButton(
-              onPressed: () => storeController.toggleFavorite(product),
-              icon: Icon(
-                storeController.isFavorite(product)
-                    ? Icons.favorite
-                    : Icons.favorite_border,
-                color: storeController.isFavorite(product)
-                    ? Theme.of(context).primaryColor
-                    : isDark
-                    ? Colors.white
-                    : Colors.black,
-              ),
-            ),
-          ),
+          // Obx(
+          //   () => IconButton(
+          //     onPressed: () => storeController.toggleFavorite(product),
+          //     icon: Icon(
+          //       storeController.isFavorite(product)
+          //           ? Icons.favorite
+          //           : Icons.favorite_border,
+          //       color: storeController.isFavorite(product)
+          //           ? Theme.of(context).primaryColor
+          //           : isDark
+          //           ? Colors.white
+          //           : Colors.black,
+          //     ),
+          //   ),
+          // ),
         ],
         title: Text(
           'Details',
@@ -105,6 +111,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             isDark ? Colors.white : Colors.black,
           ),
         ),
+      ),
+      floatingActionButton: CartFloatingActionButton(
+        heroTag: 'product_detail_cart_fab_${product.id}',
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -293,17 +302,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 aspectRatio: 16 / 10,
                 child: _buildProductImage(imagePath),
               ),
-              // Positioned(
-              //   right: 8,
-              //   top: 8,
-              //   child: IconButton(
-              //     onPressed: () {},
-              //     icon: Icon(
-              //       Icons.favorite_border,
-              //       color: isDark ? Colors.black : Colors.white,
-              //     ),
-              //   ),
-              // ),
+              // affichage du badge de promotion si la variente a une promotion
+              // exp : [icon Promo -10%] ou [icon Promo 5000 FCFA]
+              if (promotionBadgeText != null)
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: _buildPromotionBadge(promotionBadgeText),
+                ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Obx(
+                  () => IconButton(
+                    onPressed: () => storeController.toggleFavorite(product),
+                    icon: Icon(
+                      storeController.isFavorite(product)
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+              ),
             ],
           );
 
@@ -470,5 +491,54 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return trimmed;
     }
     return "$trimmed FCFA";
+  }
+
+  String? _promotionBadgeText(Variant? variant) {
+    if (variant == null || !variant.hasPromotion) {
+      return null;
+    }
+
+    if (variant.promoPercentage != null && variant.promoPercentage! > 0) {
+      return '-${variant.promoPercentage}%';
+    }
+
+    if (variant.promoPrice != null) {
+      final discountValue = variant.price - variant.promoPrice!;
+      if (discountValue > 0) {
+        return '-${discountValue.toStringAsFixed(0)} FCFA';
+      }
+      return '${variant.promoPrice!.toStringAsFixed(0)} FCFA';
+    }
+
+    if (variant.discountPercentage > 0) {
+      return '-${variant.discountPercentage}%';
+    }
+
+    return 'Offre';
+  }
+
+  Widget _buildPromotionBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.local_offer_rounded, color: Colors.white, size: 13),
+          const SizedBox(width: 4),
+          Text(
+            'Promo $label',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
