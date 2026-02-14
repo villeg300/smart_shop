@@ -56,6 +56,7 @@ class AuthController extends GetxController {
     required String fullName,
     required String email,
     required String password,
+    String? avatarPath,
   }) async {
     try {
       _isLoading.value = true;
@@ -65,6 +66,7 @@ class AuthController extends GetxController {
         fullName: fullName,
         email: email,
         password: password,
+        avatarPath: avatarPath,
       );
 
       _currentUser.value = loginResponse.user;
@@ -146,6 +148,7 @@ class AuthController extends GetxController {
     String? fullName,
     String? email,
     String? phoneNumber,
+    String? avatarPath,
   }) async {
     try {
       _isLoading.value = true;
@@ -154,6 +157,7 @@ class AuthController extends GetxController {
         fullName: fullName,
         email: email,
         phoneNumber: phoneNumber,
+        avatarPath: avatarPath,
       );
 
       _currentUser.value = updatedUser;

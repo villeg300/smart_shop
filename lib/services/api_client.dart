@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -99,6 +100,41 @@ class ApiClient {
     );
   }
 
+  /// Multipart request avec auto-refresh
+  Future<http.Response> multipart(
+    String method,
+    String path, {
+    Map<String, String>? fields,
+    Map<String, String>? filePaths,
+    bool includeAuth = true,
+  }) async {
+    final safeFields = Map<String, String>.from(fields ?? const {});
+    final safeFilePaths = Map<String, String>.from(filePaths ?? const {});
+
+    Future<http.Response> sendMultipart() async {
+      final request = http.MultipartRequest(method, _uri(path));
+      final headers = _headers(includeAuth: includeAuth)
+        ..remove('Content-Type');
+
+      request.headers.addAll(headers);
+      request.fields.addAll(safeFields);
+
+      for (final entry in safeFilePaths.entries) {
+        final filePath = entry.value.trim();
+        if (filePath.isEmpty) continue;
+
+        request.files.add(
+          await http.MultipartFile.fromPath(entry.key, filePath),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      return http.Response.fromStream(streamedResponse);
+    }
+
+    return _requestWithRetry(sendMultipart, includeAuth: includeAuth);
+  }
+
   /// Effectuer une requête avec retry automatique si token expiré
   Future<http.Response> _requestWithRetry(
     Future<http.Response> Function() request, {
@@ -140,7 +176,7 @@ class ApiClient {
         return false;
       }
     } catch (e) {
-      print('Erreur lors du refresh du token: $e');
+      debugPrint('Erreur lors du refresh du token: $e');
       return false;
     }
   }

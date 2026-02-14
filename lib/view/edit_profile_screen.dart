@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:smart_shop/controllers/auth_controller.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
+import 'package:smart_shop/view/widgets/avatar_upload_field.dart';
 import 'package:smart_shop/view/widgets/costom_textfield.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -20,6 +21,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
 
+  String? _avatarPath;
+  String? _avatarUrl;
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _fullNameController = TextEditingController(text: user?.fullName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _avatarUrl = user?.avatar;
   }
 
   @override
@@ -44,6 +49,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       fullName: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
+      avatarPath: _avatarPath,
     );
 
     if (success) {
@@ -92,38 +98,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     SizedBox(height: spacing),
 
-                    // Avatar (pour plus tard)
                     Center(
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Theme.of(
-                              context,
-                            ).primaryColor.withOpacity(0.1),
-                            child: Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: AvatarUploadField(
+                        imagePath: _avatarPath,
+                        imageUrl: _avatarUrl,
+                        label: 'Changer la photo de profil',
+                        enabled: !_authController.isLoading,
+                        onImageSelected: (path) {
+                          setState(() {
+                            _avatarPath = path;
+                          });
+                        },
                       ),
                     ),
 
@@ -189,9 +174,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [

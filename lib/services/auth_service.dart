@@ -17,19 +17,30 @@ class AuthService {
     required String fullName,
     required String email,
     required String password,
+    String? avatarPath,
   }) async {
     try {
-      final response = await _client.post(
-        '/api/auth/users/',
-        {
-          'phone_number': phoneNumber,
-          'full_name': fullName,
-          'email': email,
-          'password': password,
-          're_password': password, // Djoser requiert la confirmation
-        },
-        includeAuth: false, // Pas besoin d'auth pour l'inscription
-      );
+      final payload = <String, String>{
+        'phone_number': phoneNumber,
+        'full_name': fullName,
+        'email': email,
+        'password': password,
+        're_password': password, // Djoser requiert la confirmation
+      };
+
+      final response = avatarPath != null && avatarPath.trim().isNotEmpty
+          ? await _client.multipart(
+              'POST',
+              '/api/auth/users/',
+              fields: payload,
+              filePaths: {'avatar': avatarPath},
+              includeAuth: false,
+            )
+          : await _client.post(
+              '/api/auth/users/',
+              payload,
+              includeAuth: false, // Pas besoin d'auth pour l'inscription
+            );
 
       if (response.statusCode == 201) {
         // Inscription réussie, maintenant se connecter automatiquement
@@ -104,6 +115,7 @@ class AuthService {
     String? fullName,
     String? email,
     String? phoneNumber,
+    String? avatarPath,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -111,7 +123,18 @@ class AuthService {
       if (email != null) body['email'] = email;
       if (phoneNumber != null) body['phone_number'] = phoneNumber;
 
-      final response = await _client.patch('/api/auth/users/me/', body);
+      final response = avatarPath != null && avatarPath.trim().isNotEmpty
+          ? await _client.multipart(
+              'PATCH',
+              '/api/auth/users/me/',
+              fields: {
+                ...?fullName == null ? null : {'full_name': fullName},
+                ...?email == null ? null : {'email': email},
+                ...?phoneNumber == null ? null : {'phone_number': phoneNumber},
+              },
+              filePaths: {'avatar': avatarPath},
+            )
+          : await _client.patch('/api/auth/users/me/', body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

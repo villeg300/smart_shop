@@ -4,6 +4,7 @@ import 'package:smart_shop/controllers/auth_controller.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/utils/app_textstyles.dart';
 import 'package:smart_shop/view/main_screen.dart';
+import 'package:smart_shop/view/widgets/avatar_upload_field.dart';
 import 'package:smart_shop/view/widgets/costom_textfield.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -21,6 +22,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _authController = Get.find<AuthController>();
+
+  String? _avatarPath;
 
   @override
   void dispose() {
@@ -40,6 +43,7 @@ class _SignupScreenState extends State<SignupScreen> {
       fullName: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      avatarPath: _avatarPath,
     );
 
     if (success) {
@@ -81,7 +85,21 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  Center(
+                    child: AvatarUploadField(
+                      imagePath: _avatarPath,
+                      label: 'Ajouter un avatar (optionnel)',
+                      onImageSelected: (path) {
+                        setState(() {
+                          _avatarPath = path;
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // Nom complet
                   CostomTextfield(
