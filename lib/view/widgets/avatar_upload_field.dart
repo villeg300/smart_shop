@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AvatarUploadField extends StatelessWidget {
@@ -56,14 +57,30 @@ class AvatarUploadField extends StatelessWidget {
         : ImageSource.gallery;
 
     final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: source,
-      imageQuality: 82,
-      maxWidth: 1400,
-    );
+    try {
+      final file = await picker.pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1400,
+      );
 
-    if (file != null) {
-      onImageSelected(file.path);
+      if (file != null) {
+        onImageSelected(file.path);
+      }
+    } on PlatformException catch (e) {
+      if (!context.mounted) return;
+      final message =
+          e.message ?? 'Accès refusé ou fonctionnalité non disponible.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible d\'ouvrir le sélecteur: $message')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erreur lors de l\'ouverture de la photo.'),
+        ),
+      );
     }
   }
 

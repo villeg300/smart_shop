@@ -7,7 +7,7 @@ import 'package:smart_shop/utils/app_responsive.dart';
 import 'package:smart_shop/view/all_products_screen.dart';
 import 'package:smart_shop/view/product_detail_screen.dart';
 import 'package:smart_shop/view/widgets/category_chips.dart';
-import 'package:smart_shop/view/widgets/custom_search_bar.dart';
+// import 'package:smart_shop/view/widgets/custom_search_bar.dart';
 import 'package:smart_shop/view/widgets/product_card.dart';
 import 'package:smart_shop/view/widgets/sale_banner.dart';
 
@@ -181,12 +181,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               );
                             }),
-                            SizedBox(height: spacing),
-                            const CustomSearchBar(),
-                            SizedBox(height: spacing),
-                            const CategoryChips(),
+                            // SizedBox(height: spacing),
+                            // const CustomSearchBar(),
                             SizedBox(height: spacing),
                             const SaleBanner(),
+                            SizedBox(height: spacing),
+                            const CategoryChips(),
                             SizedBox(height: spacing),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
