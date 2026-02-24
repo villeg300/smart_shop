@@ -97,6 +97,9 @@ class OrderItem {
 class Order {
   final String id;
   final String userId;
+  final String? userFullName;
+  final String? userPhoneNumber;
+  final String? userEmail;
   final OrderStatus status;
   final double subtotal;
   final double shippingCost;
@@ -123,6 +126,9 @@ class Order {
   Order({
     required this.id,
     required this.userId,
+    this.userFullName,
+    this.userPhoneNumber,
+    this.userEmail,
     required this.status,
     required this.subtotal,
     required this.shippingCost,
@@ -155,6 +161,9 @@ class Order {
     return Order(
       id: json['id'].toString(),
       userId: json['user'].toString(),
+      userFullName: json['user_full_name'] as String?,
+      userPhoneNumber: json['user_phone_number'] as String?,
+      userEmail: json['user_email'] as String?,
       status: OrderStatus.fromString(json['status'] as String),
       subtotal: double.parse(json['subtotal'].toString()),
       shippingCost: double.parse(json['shipping_cost'].toString()),
@@ -190,6 +199,9 @@ class Order {
     return {
       'id': id,
       'user': userId,
+      if (userFullName != null) 'user_full_name': userFullName,
+      if (userPhoneNumber != null) 'user_phone_number': userPhoneNumber,
+      if (userEmail != null) 'user_email': userEmail,
       'status': status.name,
       'subtotal': subtotal,
       'shipping_cost': shippingCost,
@@ -221,6 +233,9 @@ class Order {
   Order copyWith({
     String? id,
     String? userId,
+    String? userFullName,
+    String? userPhoneNumber,
+    String? userEmail,
     OrderStatus? status,
     double? subtotal,
     double? shippingCost,
@@ -245,6 +260,9 @@ class Order {
     return Order(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      userFullName: userFullName ?? this.userFullName,
+      userPhoneNumber: userPhoneNumber ?? this.userPhoneNumber,
+      userEmail: userEmail ?? this.userEmail,
       status: status ?? this.status,
       subtotal: subtotal ?? this.subtotal,
       shippingCost: shippingCost ?? this.shippingCost,

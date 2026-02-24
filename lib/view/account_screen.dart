@@ -6,6 +6,7 @@ import 'package:smart_shop/utils/app_textstyles.dart';
 import 'package:smart_shop/view/account_change_password_screen.dart';
 import 'package:smart_shop/view/account_orders_screen.dart';
 import 'package:smart_shop/view/account_settings_screen.dart';
+import 'package:smart_shop/view/admin/admin_dashboard_screen.dart';
 import 'package:smart_shop/view/edit_profile_screen.dart';
 import 'package:smart_shop/view/signin_screen.dart';
 
@@ -72,7 +73,7 @@ class AccountScreen extends StatelessWidget {
                             radius: 32,
                             backgroundColor: Theme.of(
                               context,
-                            ).primaryColor.withOpacity(0.1),
+                            ).primaryColor.withValues(alpha: 0.1),
                             child: user.avatar != null
                                 ? ClipOval(
                                     child: Image.network(
@@ -80,7 +81,7 @@ class AccountScreen extends StatelessWidget {
                                       width: 64,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Icon(
+                                      errorBuilder: (_, _, _) => Icon(
                                         Icons.person,
                                         size: 32,
                                         color: Theme.of(context).primaryColor,
@@ -140,7 +141,9 @@ class AccountScreen extends StatelessWidget {
                           gradient: LinearGradient(
                             colors: [
                               Theme.of(context).primaryColor,
-                              Theme.of(context).primaryColor.withOpacity(0.7),
+                              Theme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.7),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -177,7 +180,7 @@ class AccountScreen extends StatelessWidget {
                             ),
                             Icon(
                               Icons.arrow_forward_ios,
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               size: 16,
                             ),
                           ],
@@ -207,15 +210,22 @@ class AccountScreen extends StatelessWidget {
                       _AccountTile(
                         icon: Icons.lock_outline,
                         title: "Changer le mot de passe",
-                        onTap: () => Get.to(
-                          () => const AccountChangePasswordScreen(),
-                        ),
+                        onTap: () =>
+                            Get.to(() => const AccountChangePasswordScreen()),
                       ),
                       _AccountTile(
                         icon: Icons.settings_outlined,
                         title: "Paramètres",
-                        onTap: () => Get.to(() => const AccountSettingsScreen()),
+                        onTap: () =>
+                            Get.to(() => const AccountSettingsScreen()),
                       ),
+                      if (user.isAdminOrStaff)
+                        _AccountTile(
+                          icon: Icons.admin_panel_settings_outlined,
+                          title: "Tableau de bord",
+                          onTap: () =>
+                              Get.to(() => const AdminDashboardScreen()),
+                        ),
                       const Divider(height: 32),
                       _AccountTile(
                         icon: Icons.logout,

@@ -4,6 +4,8 @@ class User {
   final String fullName;
   final String email;
   final int loyaltyPoints;
+  final bool isStaff;
+  final bool isSuperuser;
   final DateTime dateJoined;
   final String? avatar; // Pour plus tard
 
@@ -13,6 +15,8 @@ class User {
     required this.fullName,
     required this.email,
     required this.loyaltyPoints,
+    required this.isStaff,
+    required this.isSuperuser,
     required this.dateJoined,
     this.avatar,
   });
@@ -25,7 +29,11 @@ class User {
       fullName: json['full_name'] as String,
       email: json['email'] as String,
       loyaltyPoints: json['loyalty_points'] as int? ?? 0,
-      dateJoined: DateTime.parse(json['date_joined'] as String),
+      isStaff: json['is_staff'] as bool? ?? false,
+      isSuperuser: json['is_superuser'] as bool? ?? false,
+      dateJoined: json['date_joined'] != null
+          ? DateTime.parse(json['date_joined'] as String)
+          : DateTime.now(),
       avatar: json['avatar'] as String?,
     );
   }
@@ -38,6 +46,8 @@ class User {
       'full_name': fullName,
       'email': email,
       'loyalty_points': loyaltyPoints,
+      'is_staff': isStaff,
+      'is_superuser': isSuperuser,
       'date_joined': dateJoined.toIso8601String(),
       if (avatar != null) 'avatar': avatar,
     };
@@ -50,6 +60,8 @@ class User {
     String? fullName,
     String? email,
     int? loyaltyPoints,
+    bool? isStaff,
+    bool? isSuperuser,
     DateTime? dateJoined,
     String? avatar,
   }) {
@@ -59,14 +71,18 @@ class User {
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
+      isStaff: isStaff ?? this.isStaff,
+      isSuperuser: isSuperuser ?? this.isSuperuser,
       dateJoined: dateJoined ?? this.dateJoined,
       avatar: avatar ?? this.avatar,
     );
   }
 
+  bool get isAdminOrStaff => isStaff || isSuperuser;
+
   @override
   String toString() {
-    return 'User(id: $id, fullName: $fullName, phone: $phoneNumber, email: $email)';
+    return 'User(id: $id, fullName: $fullName, phone: $phoneNumber, email: $email, isStaff: $isStaff, isSuperuser: $isSuperuser)';
   }
 
   @override
