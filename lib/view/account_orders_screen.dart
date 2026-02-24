@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -156,76 +157,171 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
   }
 
   void _showOrderDetails(Order order) {
+    final theme = Theme.of(context);
+    final statusColor = _statusChipColor(order);
+
     Get.bottomSheet(
-      Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      FractionallySizedBox(
+        heightFactor: 0.88,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  'Detail commande',
+                  'Détail commande',
+                  textAlign: TextAlign.center,
                   style: AppTextStyles.withWeight(
                     AppTextStyles.h3,
                     FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text('Statut: ${order.statusDisplay}'),
-                Text('Date: ${_formatDate(order.createdAt)}'),
-                Text('Retrait: ${_formatPickup(order)}'),
-                const SizedBox(height: 12),
-                const Text(
-                  'Articles',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                ...order.items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
+                const SizedBox(height: 14),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: theme.cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  _OrderStatusPill(
+                                    label: order.statusDisplay,
+                                    color: statusColor,
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    _formatDate(order.createdAt),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              _DetailLine(
+                                icon: Icons.store_mall_directory_outlined,
+                                text: 'Retrait: ${_formatPickup(order)}',
+                              ),
+                              if (order.customerNotes.trim().isNotEmpty)
+                                _DetailLine(
+                                  icon: Icons.notes_outlined,
+                                  text: order.customerNotes.trim(),
+                                ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text('x${item.quantity}'),
-                        const SizedBox(width: 8),
-                        Text('${item.formattedLineTotal} FCFA'),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: Container(
+                            width: 230,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: theme.dividerColor.withValues(
+                                  alpha: 0.45,
+                                ),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                QrImageView(
+                                  data: order.id,
+                                  size: 150,
+                                  version: QrVersions.auto,
+                                  backgroundColor: Colors.white,
+                                  eyeStyle: const QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: Colors.black,
+                                  ),
+                                  dataModuleStyle: const QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  order.id,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Articles (${order.items.length})',
+                          style: AppTextStyles.withWeight(
+                            AppTextStyles.h3,
+                            FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...order.items.map(
+                          (item) => _OrderDetailItemCard(item: item),
+                        ),
+                        const SizedBox(height: 10),
+                        if (order.canBeCancelled)
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                Get.back();
+                                await _confirmCancel(order);
+                              },
+                              icon: const Icon(Icons.cancel_outlined),
+                              label: const Text('Annuler la commande'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: BorderSide(
+                                  color: Colors.red.withValues(alpha: 0.5),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                if (order.canBeCancelled)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        Get.back();
-                        await _confirmCancel(order);
-                      },
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('Annuler la commande'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: BorderSide(
-                          color: Colors.red.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -233,6 +329,13 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
       ),
       isScrollControlled: true,
     );
+  }
+
+  Color _statusChipColor(Order order) {
+    if (order.isCancelled) return Colors.red;
+    if (order.isDelivered || order.isConfirmed) return Colors.green;
+    if (order.isPending) return Colors.grey.shade700;
+    return Theme.of(context).primaryColor;
   }
 
   @override
@@ -355,4 +458,196 @@ enum _OrderFilter {
 
   final String label;
   const _OrderFilter(this.label);
+}
+
+class _OrderStatusPill extends StatelessWidget {
+  const _OrderStatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
+  const _DetailLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderDetailItemCard extends StatelessWidget {
+  const _OrderDetailItemCard({required this.item});
+
+  final OrderItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final imageUrl = item.variant?.imageUrl;
+    final attributesText = _resolveAttributes(item);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: 58,
+              height: 58,
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.6,
+              ),
+              child: (imageUrl != null && imageUrl.trim().isNotEmpty)
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.inventory_2_outlined,
+                        color: theme.colorScheme.primary,
+                      ),
+                    )
+                  : Icon(
+                      Icons.inventory_2_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (attributesText.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      attributesText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'x${item.quantity}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${item.formattedLineTotal} FCFA',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _resolveAttributes(OrderItem item) {
+    final variant = item.variant;
+    if (variant == null) {
+      return item.skuSnapshot.isNotEmpty ? 'SKU: ${item.skuSnapshot}' : '';
+    }
+
+    if (variant.attributesDisplay.trim().isNotEmpty) {
+      return variant.attributesDisplay.trim();
+    }
+
+    if (variant.attributes.isNotEmpty) {
+      return variant.attributes
+          .map((a) => '${a.attributeName}: ${a.value}')
+          .join(' • ');
+    }
+
+    if (item.skuSnapshot.isNotEmpty) {
+      return 'SKU: ${item.skuSnapshot}';
+    }
+
+    return '';
+  }
 }
