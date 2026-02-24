@@ -9,6 +9,7 @@ import 'package:smart_shop/utils/app_themes.dart';
 import 'package:smart_shop/view/splash_screen.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
   Get.put(ThemeController());
   Get.put(AuthController());
