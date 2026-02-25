@@ -16,17 +16,38 @@ class AccountOrdersScreen extends StatefulWidget {
   State<AccountOrdersScreen> createState() => _AccountOrdersScreenState();
 }
 
-class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
+class _AccountOrdersScreenState extends State<AccountOrdersScreen>
+    with SingleTickerProviderStateMixin {
+  static const List<_OrderFilter> _tabFilters = <_OrderFilter>[
+    _OrderFilter.ready,
+    _OrderFilter.processing,
+    _OrderFilter.pending,
+    _OrderFilter.cancelled,
+    _OrderFilter.all,
+  ];
+
   late final OrderController _orderController;
-  _OrderFilter _filter = _OrderFilter.active;
+  late final TabController _tabController;
+  _OrderFilter _filter = _OrderFilter.all;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: _tabFilters.length,
+      vsync: this,
+      initialIndex: _tabFilters.indexOf(_filter),
+    );
     _orderController = Get.isRegistered<OrderController>()
         ? Get.find<OrderController>()
         : Get.put(OrderController());
     _orderController.loadOrders();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -34,17 +55,28 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
   }
 
   List<Order> _applyFilter(List<Order> orders) {
-    switch (_filter) {
-      case _OrderFilter.active:
-        return orders
-            .where((order) => !order.isPickedUp && !order.isCancelled)
-            .toList();
-      case _OrderFilter.pending:
-        return orders.where((order) => order.isPending).toList();
+    return orders.where((order) => _matchesFilter(order, _filter)).toList();
+  }
+
+  int _countForFilter(List<Order> orders, _OrderFilter filter) {
+    if (filter == _OrderFilter.all) {
+      return orders.length;
+    }
+    return orders.where((order) => _matchesFilter(order, filter)).length;
+  }
+
+  bool _matchesFilter(Order order, _OrderFilter filter) {
+    switch (filter) {
       case _OrderFilter.ready:
-        return orders.where((order) => order.isReady).toList();
+        return order.isReady;
+      case _OrderFilter.processing:
+        return order.isProcessing;
+      case _OrderFilter.pending:
+        return order.isPending;
       case _OrderFilter.cancelled:
-        return orders.where((order) => order.isCancelled).toList();
+        return order.isCancelled;
+      case _OrderFilter.all:
+        return true;
     }
   }
 
@@ -380,37 +412,46 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
               padding: padding,
               child: Column(
                 children: [
-                  DropdownButtonFormField<_OrderFilter>(
-                    initialValue: _filter,
-                    decoration: InputDecoration(
-                      labelText: 'Filtrer',
-                      prefixIcon: const Icon(Icons.filter_alt_outlined),
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.35),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
+                  Obx(() {
+                    final allOrders = _orderController.orders.toList();
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    items: _OrderFilter.values
-                        .map(
-                          (filter) => DropdownMenuItem<_OrderFilter>(
-                            value: filter,
-                            child: Text(filter.label),
+                      child: TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        dividerColor: Colors.transparent,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.18,
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        _filter = value;
-                      });
-                    },
-                  ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        labelColor: theme.colorScheme.primary,
+                        unselectedLabelColor:
+                            theme.colorScheme.onSurfaceVariant,
+                        onTap: (index) {
+                          setState(() {
+                            _filter = _tabFilters[index];
+                          });
+                        },
+                        tabs: _tabFilters
+                            .map(
+                              (filter) => Tab(
+                                text:
+                                    '${filter.label} (${_countForFilter(allOrders, filter)})',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  }),
                   SizedBox(height: spacing),
                   Expanded(
                     child: Obx(() {
@@ -429,7 +470,7 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
                               Icon(Icons.receipt_long, size: 70),
                               SizedBox(height: 12),
                               Center(
-                                child: Text('Aucune commande pour ce filtre'),
+                                child: Text('Aucune commande pour cet onglet'),
                               ),
                             ],
                           ),
@@ -462,10 +503,11 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
 }
 
 enum _OrderFilter {
-  active('Actives'),
+  all('Toute'),
+  ready('Prête'),
+  processing('En traitement'),
   pending('En attente'),
-  ready('Prêtes'),
-  cancelled('Annulées');
+  cancelled('Annulé');
 
   final String label;
   const _OrderFilter(this.label);
