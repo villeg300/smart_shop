@@ -162,10 +162,9 @@ class OrderService {
 
       final ordersByStatus = <OrderStatus, List<Order>>{
         OrderStatus.pending: [],
-        OrderStatus.confirmed: [],
         OrderStatus.processing: [],
-        OrderStatus.shipped: [],
-        OrderStatus.delivered: [],
+        OrderStatus.ready: [],
+        OrderStatus.pickedUp: [],
         OrderStatus.cancelled: [],
       };
 
@@ -185,7 +184,7 @@ class OrderService {
       final allOrders = await fetchOrders();
 
       return allOrders
-          .where((order) => !order.isDelivered && !order.isCancelled)
+          .where((order) => !order.isPickedUp && !order.isCancelled)
           .toList();
     } catch (e) {
       throw Exception('Erreur lors du chargement des commandes actives: $e');
@@ -198,7 +197,7 @@ class OrderService {
       final allOrders = await fetchOrders();
 
       return allOrders
-          .where((order) => order.isDelivered || order.isCancelled)
+          .where((order) => order.isPickedUp || order.isCancelled)
           .toList();
     } catch (e) {
       throw Exception('Erreur lors du chargement de l\'historique: $e');

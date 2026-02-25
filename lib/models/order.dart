@@ -2,24 +2,36 @@ import 'variant.dart';
 
 enum OrderStatus {
   pending,
-  confirmed,
   processing,
-  shipped,
-  delivered,
+  ready,
+  pickedUp,
   cancelled;
+
+  String get backendValue {
+    switch (this) {
+      case OrderStatus.pending:
+        return 'pending';
+      case OrderStatus.processing:
+        return 'processing';
+      case OrderStatus.ready:
+        return 'ready';
+      case OrderStatus.pickedUp:
+        return 'picked_up';
+      case OrderStatus.cancelled:
+        return 'cancelled';
+    }
+  }
 
   String get displayName {
     switch (this) {
       case OrderStatus.pending:
         return 'En attente';
-      case OrderStatus.confirmed:
-        return 'Confirmée';
       case OrderStatus.processing:
         return 'En traitement';
-      case OrderStatus.shipped:
-        return 'Expédiée';
-      case OrderStatus.delivered:
-        return 'Livrée';
+      case OrderStatus.ready:
+        return 'Prête';
+      case OrderStatus.pickedUp:
+        return 'Récupérée';
       case OrderStatus.cancelled:
         return 'Annulée';
     }
@@ -29,14 +41,19 @@ enum OrderStatus {
     switch (status.toLowerCase()) {
       case 'pending':
         return OrderStatus.pending;
-      case 'confirmed':
-        return OrderStatus.confirmed;
       case 'processing':
         return OrderStatus.processing;
+      case 'ready':
+        return OrderStatus.ready;
+      case 'picked_up':
+        return OrderStatus.pickedUp;
+      // Compatibilité des anciennes valeurs backend
+      case 'confirmed':
+        return OrderStatus.processing;
       case 'shipped':
-        return OrderStatus.shipped;
+        return OrderStatus.ready;
       case 'delivered':
-        return OrderStatus.delivered;
+        return OrderStatus.pickedUp;
       case 'cancelled':
         return OrderStatus.cancelled;
       default:
@@ -202,7 +219,7 @@ class Order {
       if (userFullName != null) 'user_full_name': userFullName,
       if (userPhoneNumber != null) 'user_phone_number': userPhoneNumber,
       if (userEmail != null) 'user_email': userEmail,
-      'status': status.name,
+      'status': status.backendValue,
       'subtotal': subtotal,
       'shipping_cost': shippingCost,
       'discount_amount': discountAmount,
@@ -217,16 +234,13 @@ class Order {
   }
 
   bool get isPending => status == OrderStatus.pending;
-  bool get isConfirmed => status == OrderStatus.confirmed;
   bool get isProcessing => status == OrderStatus.processing;
-  bool get isShipped => status == OrderStatus.shipped;
-  bool get isDelivered => status == OrderStatus.delivered;
+  bool get isReady => status == OrderStatus.ready;
+  bool get isPickedUp => status == OrderStatus.pickedUp;
   bool get isCancelled => status == OrderStatus.cancelled;
 
   bool get canBeCancelled =>
-      status == OrderStatus.pending ||
-      status == OrderStatus.confirmed ||
-      status == OrderStatus.processing;
+      status == OrderStatus.pending || status == OrderStatus.processing;
 
   String get statusDisplay => status.displayName;
 

@@ -138,6 +138,7 @@ class CatalogService {
     double? minPrice,
     double? maxPrice,
     String? attributes,
+    bool? inStock,
     String? ordering,
     int page = 1,
   }) async {
@@ -160,6 +161,9 @@ class CatalogService {
       }
       if (attributes != null && attributes.isNotEmpty) {
         params['attributes'] = attributes;
+      }
+      if (inStock != null) {
+        params['in_stock'] = inStock ? 'true' : 'false';
       }
       if (ordering != null) {
         params['ordering'] = ordering;

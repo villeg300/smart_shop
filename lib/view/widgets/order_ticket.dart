@@ -350,10 +350,10 @@ _StatusStyle _statusStyle(BuildContext context, Order order) {
     );
   }
 
-  if (order.isConfirmed) {
+  if (order.isProcessing) {
     return _StatusStyle(
-      label: 'Confirmée',
-      icon: Icons.verified_outlined,
+      label: 'En traitement',
+      icon: Icons.sync_outlined,
       background: Colors.green.withValues(alpha: 0.18),
       foreground: Colors.green.shade800,
     );
@@ -368,18 +368,27 @@ _StatusStyle _statusStyle(BuildContext context, Order order) {
     );
   }
 
-  if (order.isDelivered) {
+  if (order.isReady) {
     return _StatusStyle(
-      label: 'Livrée',
-      icon: Icons.inventory_2_outlined,
+      label: 'Prête',
+      icon: Icons.local_shipping_outlined,
       background: Colors.green.withValues(alpha: 0.16),
       foreground: Colors.green.shade800,
     );
   }
 
+  if (order.isPickedUp) {
+    return _StatusStyle(
+      label: 'Récupérée',
+      icon: Icons.inventory_2_outlined,
+      background: Colors.teal.withValues(alpha: 0.16),
+      foreground: Colors.teal.shade800,
+    );
+  }
+
   return _StatusStyle(
     label: order.statusDisplay,
-    icon: Icons.local_shipping_outlined,
+    icon: Icons.receipt_long_outlined,
     background: scheme.primaryContainer.withValues(alpha: 0.65),
     foreground: scheme.onPrimaryContainer,
   );

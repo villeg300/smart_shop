@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:smart_shop/constants/order_status_constants.dart';
 import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -36,12 +37,12 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
     switch (_filter) {
       case _OrderFilter.active:
         return orders
-            .where((order) => !order.isDelivered && !order.isCancelled)
+            .where((order) => !order.isPickedUp && !order.isCancelled)
             .toList();
       case _OrderFilter.pending:
         return orders.where((order) => order.isPending).toList();
-      case _OrderFilter.confirmed:
-        return orders.where((order) => order.isConfirmed).toList();
+      case _OrderFilter.ready:
+        return orders.where((order) => order.isReady).toList();
       case _OrderFilter.cancelled:
         return orders.where((order) => order.isCancelled).toList();
     }
@@ -85,6 +86,15 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
   }
 
   Future<void> _confirmCancel(Order order) async {
+    if (!OrderStatusConstants.canShopperCancel(order.status)) {
+      Get.snackbar(
+        'Action non disponible',
+        'Cette commande ne peut plus être annulée.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await Get.dialog<bool>(
       AlertDialog(
@@ -297,7 +307,7 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
                           (item) => _OrderDetailItemCard(item: item),
                         ),
                         const SizedBox(height: 10),
-                        if (order.canBeCancelled)
+                        if (OrderStatusConstants.canShopperCancel(order.status))
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
@@ -333,7 +343,8 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
 
   Color _statusChipColor(Order order) {
     if (order.isCancelled) return Colors.red;
-    if (order.isDelivered || order.isConfirmed) return Colors.green;
+    if (order.isPickedUp) return Colors.green;
+    if (order.isReady) return Colors.teal;
     if (order.isPending) return Colors.grey.shade700;
     return Theme.of(context).primaryColor;
   }
@@ -453,7 +464,7 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen> {
 enum _OrderFilter {
   active('Actives'),
   pending('En attente'),
-  confirmed('Confirmée'),
+  ready('Prêtes'),
   cancelled('Annulées');
 
   final String label;

@@ -168,21 +168,20 @@ class OrderController extends GetxController {
   }
 
   List<Order> get pendingOrders => getOrdersByStatus(OrderStatus.pending);
-  List<Order> get confirmedOrders => getOrdersByStatus(OrderStatus.confirmed);
   List<Order> get processingOrders => getOrdersByStatus(OrderStatus.processing);
-  List<Order> get shippedOrders => getOrdersByStatus(OrderStatus.shipped);
-  List<Order> get deliveredOrders => getOrdersByStatus(OrderStatus.delivered);
+  List<Order> get readyOrders => getOrdersByStatus(OrderStatus.ready);
+  List<Order> get pickedUpOrders => getOrdersByStatus(OrderStatus.pickedUp);
   List<Order> get cancelledOrders => getOrdersByStatus(OrderStatus.cancelled);
 
   List<Order> get activeOrders {
     return orders
-        .where((order) => !order.isDelivered && !order.isCancelled)
+        .where((order) => !order.isPickedUp && !order.isCancelled)
         .toList();
   }
 
   List<Order> get orderHistory {
     return orders
-        .where((order) => order.isDelivered || order.isCancelled)
+        .where((order) => order.isPickedUp || order.isCancelled)
         .toList();
   }
 
@@ -195,7 +194,7 @@ class OrderController extends GetxController {
   int get activeOrdersCount => activeOrders.length;
 
   double get totalSpent {
-    return deliveredOrders.fold(0.0, (sum, order) => sum + order.totalAmount);
+    return pickedUpOrders.fold(0.0, (sum, order) => sum + order.totalAmount);
   }
 
   String get formattedTotalSpent {

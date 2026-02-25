@@ -64,7 +64,13 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Future<void> _saveOrder(Order order) async {
-    final selectedStatus = _selectedStatus ?? order.status;
+    final editableStatuses = OrderStatusConstants.adminEditableStatuses(
+      order.status,
+    );
+    final selectedStatus =
+        _selectedStatus != null && editableStatuses.contains(_selectedStatus)
+        ? _selectedStatus!
+        : order.status;
 
     final ok = await _controller.updateStatus(
       orderId: order.id,
@@ -136,6 +142,22 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 context,
                 order.status,
               );
+              final editableStatuses =
+                  OrderStatusConstants.adminEditableStatuses(order.status);
+              final canEditStatus = OrderStatusConstants.canAdminEditStatus(
+                order.status,
+              );
+              final selectedStatus =
+                  _selectedStatus != null &&
+                      editableStatuses.contains(_selectedStatus)
+                  ? _selectedStatus!
+                  : order.status;
+              final hasStatusChanged = selectedStatus != order.status;
+              final hasNotesChanged =
+                  _adminNotesController.text.trim() != order.adminNotes.trim();
+              final canSubmit =
+                  !_controller.isUpdating.value &&
+                  ((canEditStatus && hasStatusChanged) || hasNotesChanged);
 
               return RefreshIndicator(
                 onRefresh: () => _loadOrder(showLoader: false),
@@ -258,34 +280,48 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<OrderStatus>(
-                              initialValue: _selectedStatus ?? order.status,
-                              decoration: const InputDecoration(
-                                labelText: 'Statut',
-                                prefixIcon: Icon(Icons.sync_alt_outlined),
-                              ),
-                              items: OrderStatusConstants.backendStatuses
-                                  .map(
-                                    (status) => DropdownMenuItem<OrderStatus>(
-                                      value: status,
-                                      child: Text(
-                                        OrderStatusConstants.label(status),
+                            if (canEditStatus)
+                              DropdownButtonFormField<OrderStatus>(
+                                key: ValueKey(
+                                  '${order.id}-${selectedStatus.name}',
+                                ),
+                                initialValue: selectedStatus,
+                                decoration: const InputDecoration(
+                                  labelText: 'Statut',
+                                  prefixIcon: Icon(Icons.sync_alt_outlined),
+                                ),
+                                items: editableStatuses
+                                    .map(
+                                      (status) => DropdownMenuItem<OrderStatus>(
+                                        value: status,
+                                        child: Text(
+                                          OrderStatusConstants.label(status),
+                                        ),
                                       ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  _selectedStatus = value;
-                                });
-                              },
-                            ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    _selectedStatus = value;
+                                  });
+                                },
+                              )
+                            else
+                              Text(
+                                'Aucune transition de statut disponible.',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             const SizedBox(height: 10),
                             TextField(
                               controller: _adminNotesController,
                               minLines: 2,
                               maxLines: 4,
+                              onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
                                 labelText: 'Notes admin',
                                 alignLabelWithHint: true,
@@ -296,9 +332,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                               () => SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: _controller.isUpdating.value
-                                      ? null
-                                      : () => _saveOrder(order),
+                                  onPressed: canSubmit
+                                      ? () => _saveOrder(order)
+                                      : null,
                                   icon: _controller.isUpdating.value
                                       ? const SizedBox(
                                           width: 16,

@@ -169,8 +169,14 @@ class StoreController extends GetxController {
 
   Future<List<Variant>> loadVariantsForProduct(String productId) async {
     try {
-      final result = await _catalogService.fetchVariants(productId: productId);
-      return result['variants'] as List<Variant>;
+      final result = await _catalogService.fetchVariants(
+        productId: productId,
+        inStock: true,
+      );
+      final fetched = result['variants'] as List<Variant>;
+      return fetched
+          .where((variant) => variant.isActive && variant.stock > 0)
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Erreur',

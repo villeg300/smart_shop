@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
 import 'package:smart_shop/view/admin/admin_order_detail_screen.dart';
 
-enum AdminScanMode { find, confirm }
+enum AdminScanMode { find, process }
 
 class AdminScanOrderScreen extends StatefulWidget {
   const AdminScanOrderScreen({
@@ -38,8 +38,8 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     if (widget.title != null && widget.title!.trim().isNotEmpty) {
       return widget.title!.trim();
     }
-    return widget.mode == AdminScanMode.confirm
-        ? 'Scanner pour confirmer'
+    return widget.mode == AdminScanMode.process
+        ? 'Scanner pour prise en charge'
         : 'Scanner une commande';
   }
 
@@ -96,9 +96,11 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
       _isResolving = true;
     });
 
-    if (widget.mode == AdminScanMode.confirm) {
-      final confirmed = await _adminOrderController.confirmOrderById(orderId);
-      if (!confirmed) {
+    if (widget.mode == AdminScanMode.process) {
+      final processed = await _adminOrderController.markOrderProcessingById(
+        orderId,
+      );
+      if (!processed) {
         if (!mounted) return;
         setState(() {
           _isResolving = false;
@@ -278,8 +280,8 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              widget.mode == AdminScanMode.confirm
-                  ? 'Scannez pour confirmer la commande'
+              widget.mode == AdminScanMode.process
+                  ? 'Scannez pour passer la commande en traitement'
                   : 'Placez le QR de la commande dans le cadre',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white),
@@ -364,8 +366,8 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
                       ElevatedButton(
                         onPressed: _openManualOrder,
                         child: Text(
-                          widget.mode == AdminScanMode.confirm
-                              ? 'Confirmer'
+                          widget.mode == AdminScanMode.process
+                              ? 'Prendre en charge'
                               : 'Ouvrir',
                         ),
                       ),

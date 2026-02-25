@@ -45,12 +45,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     });
 
     final fetched = await storeController.loadVariantsForProduct(product.id);
+    final inStockVariants = fetched
+        .where((variant) => variant.isActive && variant.stock > 0)
+        .toList();
     if (!mounted) return;
 
     setState(() {
       variants
         ..clear()
-        ..addAll(fetched);
+        ..addAll(inStockVariants);
       selectedVariantIndex = 0;
       isLoadingVariants = false;
     });
@@ -124,12 +127,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                product.name,
-                style: AppTextStyles.withColor(
-                  AppTextStyles.h2,
-                  Theme.of(context).textTheme.headlineMedium!.color!,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      product.name,
+                      style: AppTextStyles.withColor(
+                        AppTextStyles.h2,
+                        Theme.of(context).textTheme.headlineMedium!.color!,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      variant == null ? 'Stock: 0' : 'Stock: ${variant.stock}',
+                      style: AppTextStyles.withWeight(
+                        AppTextStyles.bodySmall,
+                        FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
@@ -272,6 +303,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     );
                   }),
+                ),
+              ] else ...[
+                Text(
+                  'Aucune variante en stock pour le moment.',
+                  style: AppTextStyles.withColor(
+                    AppTextStyles.bodySmall,
+                    isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                  ),
                 ),
               ],
               SizedBox(height: spacing),
@@ -426,15 +465,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     String description,
   ) async {
     final box = context.findRenderObject() as RenderBox?;
-    String shopLink = "https://smarShop.com/product/${productName}";
+    String shopLink = "https://smarShop.com/product/$productName";
     final String shareMessage =
         "$description\n\nAcheter maintenant a $shopLink";
 
     try {
-      final ShareResult result = await Share.share(
-        shareMessage,
-        subject: productName,
-        sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
+      final ShareResult result = await SharePlus.instance.share(
+        ShareParams(
+          text: shareMessage,
+          subject: productName,
+          sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
+        ),
       );
       if (result.status == ShareResultStatus.success) {
         debugPrint("Meci pour le partage");
@@ -463,7 +504,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         imagePath,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (context, error, stackTrace) =>
             Image.asset(placeholder, width: double.infinity, fit: BoxFit.cover),
       );
     }

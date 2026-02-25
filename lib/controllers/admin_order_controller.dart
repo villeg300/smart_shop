@@ -133,7 +133,7 @@ class AdminOrderController extends GetxController {
     }
   }
 
-  Future<bool> confirmOrderById(String orderId) async {
+  Future<bool> markOrderProcessingById(String orderId) async {
     final order = await loadOrderById(
       orderId,
       showLoader: false,
@@ -155,9 +155,13 @@ class AdminOrderController extends GetxController {
 
     return updateStatus(
       orderId: orderId,
-      status: OrderStatusConstants.backendValue(OrderStatus.confirmed),
+      status: OrderStatusConstants.backendValue(OrderStatus.processing),
       notifyOnSuccess: true,
     );
+  }
+
+  Future<bool> confirmOrderById(String orderId) {
+    return markOrderProcessingById(orderId);
   }
 
   static String? extractOrderIdFromScan(String rawValue) {
