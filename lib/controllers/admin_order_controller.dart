@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/config/app_config.dart';
+import 'package:smart_shop/constants/order_status_constants.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/services/admin_order_service.dart';
 import 'package:smart_shop/services/api_client.dart';
@@ -10,6 +11,7 @@ class AdminOrderController extends GetxController {
 
   final RxList<Order> orders = <Order>[].obs;
   final Rx<Order?> selectedOrder = Rx<Order?>(null);
+
   final RxBool isLoading = false.obs;
   final RxBool isUpdating = false.obs;
 
@@ -27,6 +29,10 @@ class AdminOrderController extends GetxController {
       if (Get.context == null) return;
       Get.snackbar(title, message, snackPosition: SnackPosition.BOTTOM);
     });
+  }
+
+  int countByStatus(OrderStatus status) {
+    return orders.where((order) => order.status == status).length;
   }
 
   Future<void> loadOrders({
@@ -94,6 +100,7 @@ class AdminOrderController extends GetxController {
     required String status,
     String? adminNotes,
     bool notifyOnError = true,
+    bool notifyOnSuccess = true,
   }) async {
     try {
       isUpdating.value = true;
@@ -109,7 +116,9 @@ class AdminOrderController extends GetxController {
         orders[index] = updated;
       }
 
-      _showSnackbarSafely('Succès', 'Statut de commande mis à jour');
+      if (notifyOnSuccess) {
+        _showSnackbarSafely('Succès', 'Statut de commande mis à jour');
+      }
       return true;
     } catch (e) {
       if (notifyOnError) {
@@ -122,6 +131,33 @@ class AdminOrderController extends GetxController {
     } finally {
       isUpdating.value = false;
     }
+  }
+
+  Future<bool> confirmOrderById(String orderId) async {
+    final order = await loadOrderById(
+      orderId,
+      showLoader: false,
+      notifyOnError: false,
+    );
+
+    if (order == null) {
+      _showSnackbarSafely('Introuvable', 'Commande non trouvée: $orderId');
+      return false;
+    }
+
+    if (order.status != OrderStatus.pending) {
+      _showSnackbarSafely(
+        'Info',
+        'La commande est déjà ${OrderStatusConstants.label(order.status).toLowerCase()}.',
+      );
+      return false;
+    }
+
+    return updateStatus(
+      orderId: orderId,
+      status: OrderStatusConstants.backendValue(OrderStatus.confirmed),
+      notifyOnSuccess: true,
+    );
   }
 
   static String? extractOrderIdFromScan(String rawValue) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_shop/constants/order_status_constants.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -17,6 +18,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late final AdminOrderController _controller;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -24,327 +26,300 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _controller = Get.isRegistered<AdminOrderController>()
         ? Get.find<AdminOrderController>()
         : Get.put(AdminOrderController());
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.loadOrders();
     });
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refreshCurrentTab() async {
+    if (_selectedIndex == 1) {
+      final status = _controller.selectedStatusFilter.value;
+      await _controller.loadOrders(
+        status: status.isEmpty
+            ? OrderStatusConstants.backendValue(OrderStatus.pending)
+            : status,
+        query: _controller.searchQuery.value,
+      );
+      return;
+    }
     await _controller.loadOrders();
   }
 
   @override
   Widget build(BuildContext context) {
-    final padding = AppResponsive.pagePadding(context);
-    final spacing = AppResponsive.sectionSpacing(context);
-    final isMobile = AppResponsive.isMobile(context);
+    final titles = ['Stats', 'Commandes', 'Produits', 'Utilisateurs'];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(titles[_selectedIndex]),
         actions: [
           IconButton(
-            tooltip: 'Scanner une commande',
-            onPressed: () => Get.to(() => const AdminScanOrderScreen()),
-            icon: const Icon(Icons.qr_code_scanner_outlined),
-          ),
-          IconButton(
             tooltip: 'Actualiser',
-            onPressed: () => _controller.loadOrders(),
+            onPressed: _refreshCurrentTab,
             icon: const Icon(Icons.refresh),
+          ),
+          if (_selectedIndex == 1)
+            IconButton(
+              tooltip: 'Scanner',
+              onPressed: () => Get.to(
+                () => const AdminScanOrderScreen(mode: AdminScanMode.find),
+              ),
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+            ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: const [
+          _AdminStatsTab(),
+          AdminOrdersTab(),
+          _AdminPlaceholderTab(
+            title: 'Produits',
+            subtitle: 'Gestion catalogue à venir',
+            icon: Icons.inventory_2_outlined,
+          ),
+          _AdminPlaceholderTab(
+            title: 'Utilisateurs',
+            subtitle: 'Gestion clients et staff à venir',
+            icon: Icons.group_outlined,
           ),
         ],
       ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: AppResponsive.contentMaxWidth(context),
-            ),
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: Obx(() {
-                final orders = _controller.orders;
-                final pendingCount = orders.where((o) => o.isPending).length;
-                final inProgressCount = orders
-                    .where(
-                      (o) => o.isConfirmed || o.isProcessing || o.isShipped,
-                    )
-                    .length;
-                final deliveredCount = orders
-                    .where((o) => o.isDelivered)
-                    .length;
-                final cancelledCount = orders
-                    .where((o) => o.isCancelled)
-                    .length;
-                final recent = orders.take(5).toList();
-
-                return ListView(
-                  padding: padding,
-                  children: [
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _StatusCountCard(
-                          width: isMobile ? double.infinity : 220,
-                          label: 'En attente',
-                          count: pendingCount,
-                          color: Colors.orange,
-                          icon: Icons.schedule_outlined,
-                        ),
-                        _StatusCountCard(
-                          width: isMobile ? double.infinity : 220,
-                          label: 'En cours',
-                          count: inProgressCount,
-                          color: Colors.blue,
-                          icon: Icons.local_shipping_outlined,
-                        ),
-                        _StatusCountCard(
-                          width: isMobile ? double.infinity : 220,
-                          label: 'Livrées',
-                          count: deliveredCount,
-                          color: Colors.green,
-                          icon: Icons.check_circle_outline,
-                        ),
-                        _StatusCountCard(
-                          width: isMobile ? double.infinity : 220,
-                          label: 'Annulées',
-                          count: cancelledCount,
-                          color: Colors.red,
-                          icon: Icons.cancel_outlined,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: spacing),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _ActionCard(
-                          icon: Icons.receipt_long_outlined,
-                          title: 'Toutes les commandes',
-                          subtitle: 'Filtrer et gérer les statuts',
-                          onTap: () => Get.to(() => const AdminOrdersScreen()),
-                        ),
-                        _ActionCard(
-                          icon: Icons.qr_code_scanner_outlined,
-                          title: 'Scanner un QR',
-                          subtitle: 'Ouvrir une commande rapidement',
-                          onTap: () =>
-                              Get.to(() => const AdminScanOrderScreen()),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: spacing),
-                    Row(
-                      children: [
-                        Text(
-                          'Dernières commandes',
-                          style: AppTextStyles.withWeight(
-                            AppTextStyles.h3,
-                            FontWeight.w700,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () =>
-                              Get.to(() => const AdminOrdersScreen()),
-                          child: const Text('Voir tout'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (_controller.isLoading.value && orders.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 24),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (recent.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('Aucune commande trouvée'),
-                      )
-                    else
-                      ...recent.map(
-                        (order) => _MiniOrderTile(
-                          order: order,
-                          onTap: () => Get.to(
-                            () => AdminOrderDetailScreen(orderId: order.id),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              }),
-            ),
+      bottomNavigationBar: NavigationBar(
+        height: 72,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Stats',
           ),
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Commandes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: 'Produits',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Utilisateurs',
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatusCountCard extends StatelessWidget {
-  const _StatusCountCard({
-    required this.width,
-    required this.label,
-    required this.count,
-    required this.color,
-    required this.icon,
-  });
-
-  final double width;
-  final String label;
-  final int count;
-  final Color color;
-  final IconData icon;
+class _AdminStatsTab extends StatelessWidget {
+  const _AdminStatsTab();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final padding = AppResponsive.pagePadding(context);
+
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.contentMaxWidth(context),
+          ),
+          child: Obx(() {
+            final controller = Get.find<AdminOrderController>();
+            final recentOrders = controller.orders.take(4).toList();
+
+            return RefreshIndicator(
+              onRefresh: controller.loadOrders,
+              child: ListView(
+                padding: padding,
                 children: [
-                  Text(
-                    '$count',
-                    style: AppTextStyles.withWeight(
-                      AppTextStyles.h3,
-                      FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    label,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cardWidth = (constraints.maxWidth - 12) / 2;
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: OrderStatusConstants.statsStatuses.map((
+                          status,
+                        ) {
+                          final visual = OrderStatusConstants.visual(
+                            context,
+                            status,
+                          );
+                          final count = controller.countByStatus(status);
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppResponsive.isMobile(context) ? double.infinity : 280,
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 2,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(10),
+                          return SizedBox(
+                            width: cardWidth,
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: visual.background,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    OrderStatusConstants.icon(status),
+                                    color: visual.foreground,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    '$count',
+                                    style: AppTextStyles.withWeight(
+                                      AppTextStyles.h2,
+                                      FontWeight.w700,
+                                    ).copyWith(color: visual.foreground),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    OrderStatusConstants.label(status),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: visual.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
-                  child: Icon(
-                    icon,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 18),
+                  Row(
                     children: [
                       Text(
-                        title,
+                        'Actions rapides',
                         style: AppTextStyles.withWeight(
-                          AppTextStyles.bodyLarge,
-                          FontWeight.w600,
+                          AppTextStyles.h3,
+                          FontWeight.w700,
                         ),
                       ),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      const Spacer(),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Get.to(
+                            () => const AdminScanOrderScreen(
+                              mode: AdminScanMode.find,
+                              title: 'Chercher une commande',
+                            ),
+                          ),
+                          icon: const Icon(Icons.qr_code_scanner_outlined),
+                          label: const Text('Chercher'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Get.to(
+                            () => const AdminScanOrderScreen(
+                              mode: AdminScanMode.confirm,
+                              title: 'Confirmer une commande',
+                            ),
+                          ),
+                          icon: const Icon(Icons.verified_outlined),
+                          label: const Text('Confirmer'),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Text(
+                        'Commandes récentes',
+                        style: AppTextStyles.withWeight(
+                          AppTextStyles.h3,
+                          FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (controller.isLoading.value && recentOrders.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (recentOrders.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('Aucune commande disponible.'),
+                    )
+                  else
+                    ...recentOrders.map(
+                      (order) => _RecentOrderTile(order: order),
+                    ),
+                ],
+              ),
+            );
+          }),
         ),
       ),
     );
   }
 }
 
-class _MiniOrderTile extends StatelessWidget {
-  const _MiniOrderTile({required this.order, required this.onTap});
+class _RecentOrderTile extends StatelessWidget {
+  const _RecentOrderTile({required this.order});
 
   final Order order;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final status = _statusUi(context, order.status);
+    final visual = OrderStatusConstants.visual(context, order.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      elevation: 1.5,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        onTap: () => Get.to(() => AdminOrderDetailScreen(orderId: order.id)),
         title: Text(
           order.id,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: AppTextStyles.withWeight(
             AppTextStyles.bodyMedium,
-            FontWeight.w600,
+            FontWeight.w700,
           ),
         ),
         subtitle: Text(
@@ -353,15 +328,15 @@ class _MiniOrderTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: status.background,
-            borderRadius: BorderRadius.circular(20),
+            color: visual.background,
+            borderRadius: BorderRadius.circular(18),
           ),
           child: Text(
-            status.label,
+            OrderStatusConstants.label(order.status),
             style: TextStyle(
-              color: status.foreground,
+              color: visual.foreground,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -372,57 +347,68 @@ class _MiniOrderTile extends StatelessWidget {
   }
 }
 
-class _StatusUi {
-  const _StatusUi({
-    required this.label,
-    required this.background,
-    required this.foreground,
+class _AdminPlaceholderTab extends StatelessWidget {
+  const _AdminPlaceholderTab({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
   });
 
-  final String label;
-  final Color background;
-  final Color foreground;
-}
+  final String title;
+  final String subtitle;
+  final IconData icon;
 
-_StatusUi _statusUi(BuildContext context, OrderStatus status) {
-  final scheme = Theme.of(context).colorScheme;
-
-  switch (status) {
-    case OrderStatus.pending:
-      return _StatusUi(
-        label: 'En attente',
-        background: scheme.surfaceContainerHighest,
-        foreground: scheme.onSurfaceVariant,
-      );
-    case OrderStatus.confirmed:
-      return _StatusUi(
-        label: 'Confirmée',
-        background: Colors.green.withValues(alpha: 0.18),
-        foreground: Colors.green.shade800,
-      );
-    case OrderStatus.processing:
-      return _StatusUi(
-        label: 'Traitement',
-        background: Colors.blue.withValues(alpha: 0.16),
-        foreground: Colors.blue.shade800,
-      );
-    case OrderStatus.shipped:
-      return _StatusUi(
-        label: 'Expédiée',
-        background: Colors.indigo.withValues(alpha: 0.16),
-        foreground: Colors.indigo.shade700,
-      );
-    case OrderStatus.delivered:
-      return _StatusUi(
-        label: 'Livrée',
-        background: Colors.green.withValues(alpha: 0.2),
-        foreground: Colors.green.shade900,
-      );
-    case OrderStatus.cancelled:
-      return _StatusUi(
-        label: 'Annulée',
-        background: scheme.errorContainer.withValues(alpha: 0.75),
-        foreground: scheme.onErrorContainer,
-      );
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.contentMaxWidth(context),
+          ),
+          child: Padding(
+            padding: AppResponsive.pagePadding(context),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 44),
+                  const SizedBox(height: 10),
+                  Text(
+                    title,
+                    style: AppTextStyles.withWeight(
+                      AppTextStyles.h3,
+                      FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

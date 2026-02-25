@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_shop/constants/order_status_constants.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -18,7 +19,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   late final AdminOrderController _controller;
   late final TextEditingController _adminNotesController;
 
-  String? _selectedStatus;
+  OrderStatus? _selectedStatus;
   bool _loadingInitial = true;
 
   @override
@@ -28,6 +29,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ? Get.find<AdminOrderController>()
         : Get.put(AdminOrderController());
     _adminNotesController = TextEditingController();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrder();
     });
@@ -49,7 +51,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
     if (order != null) {
       setState(() {
-        _selectedStatus = order.status.name;
+        _selectedStatus = order.status;
         _adminNotesController.text = order.adminNotes;
       });
     }
@@ -62,19 +64,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Future<void> _saveOrder(Order order) async {
-    final status = _selectedStatus;
-    if (status == null || status.isEmpty) {
-      Get.snackbar(
-        'Validation',
-        'Veuillez sélectionner un statut',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
+    final selectedStatus = _selectedStatus ?? order.status;
 
     final ok = await _controller.updateStatus(
       orderId: order.id,
-      status: status,
+      status: OrderStatusConstants.backendValue(selectedStatus),
       adminNotes: _adminNotesController.text.trim(),
     );
 
@@ -138,7 +132,10 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 );
               }
 
-              final statusStyle = _statusStyle(context, order.status);
+              final statusVisual = OrderStatusConstants.visual(
+                context,
+                order.status,
+              );
 
               return RefreshIndicator(
                 onRefresh: () => _loadOrder(showLoader: false),
@@ -171,13 +168,13 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: statusStyle.background,
+                                    color: statusVisual.background,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    statusStyle.label,
+                                    OrderStatusConstants.label(order.status),
                                     style: TextStyle(
-                                      color: statusStyle.foreground,
+                                      color: statusVisual.foreground,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -261,18 +258,19 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              initialValue:
-                                  _selectedStatus ?? order.status.name,
+                            DropdownButtonFormField<OrderStatus>(
+                              initialValue: _selectedStatus ?? order.status,
                               decoration: const InputDecoration(
                                 labelText: 'Statut',
                                 prefixIcon: Icon(Icons.sync_alt_outlined),
                               ),
-                              items: _statusOptions
+                              items: OrderStatusConstants.backendStatuses
                                   .map(
-                                    (status) => DropdownMenuItem<String>(
-                                      value: status.value,
-                                      child: Text(status.label),
+                                    (status) => DropdownMenuItem<OrderStatus>(
+                                      value: status,
+                                      child: Text(
+                                        OrderStatusConstants.label(status),
+                                      ),
                                     ),
                                   )
                                   .toList(),
@@ -502,77 +500,6 @@ class _DetailLine extends StatelessWidget {
   }
 }
 
-class _StatusStyle {
-  const _StatusStyle({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
-
-  final String label;
-  final Color background;
-  final Color foreground;
-}
-
-_StatusStyle _statusStyle(BuildContext context, OrderStatus status) {
-  final scheme = Theme.of(context).colorScheme;
-
-  switch (status) {
-    case OrderStatus.pending:
-      return _StatusStyle(
-        label: 'En attente',
-        background: scheme.surfaceContainerHighest,
-        foreground: scheme.onSurfaceVariant,
-      );
-    case OrderStatus.confirmed:
-      return _StatusStyle(
-        label: 'Confirmée',
-        background: Colors.green.withValues(alpha: 0.18),
-        foreground: Colors.green.shade800,
-      );
-    case OrderStatus.processing:
-      return _StatusStyle(
-        label: 'Traitement',
-        background: Colors.blue.withValues(alpha: 0.16),
-        foreground: Colors.blue.shade700,
-      );
-    case OrderStatus.shipped:
-      return _StatusStyle(
-        label: 'Expédiée',
-        background: Colors.indigo.withValues(alpha: 0.16),
-        foreground: Colors.indigo.shade700,
-      );
-    case OrderStatus.delivered:
-      return _StatusStyle(
-        label: 'Livrée',
-        background: Colors.green.withValues(alpha: 0.2),
-        foreground: Colors.green.shade900,
-      );
-    case OrderStatus.cancelled:
-      return _StatusStyle(
-        label: 'Annulée',
-        background: scheme.errorContainer.withValues(alpha: 0.75),
-        foreground: scheme.onErrorContainer,
-      );
-  }
-}
-
-class _StatusOption {
-  const _StatusOption({required this.value, required this.label});
-
-  final String value;
-  final String label;
-}
-
-const List<_StatusOption> _statusOptions = [
-  _StatusOption(value: 'pending', label: 'En attente'),
-  _StatusOption(value: 'confirmed', label: 'Confirmée'),
-  _StatusOption(value: 'processing', label: 'En traitement'),
-  _StatusOption(value: 'shipped', label: 'Expédiée'),
-  _StatusOption(value: 'delivered', label: 'Livrée'),
-  _StatusOption(value: 'cancelled', label: 'Annulée'),
-];
-
 String _formatDate(DateTime date) {
   const months = <int, String>{
     1: 'Jan',
@@ -588,6 +515,7 @@ String _formatDate(DateTime date) {
     11: 'Nov',
     12: 'Dec',
   };
+
   final month = months[date.month] ?? '${date.month}';
   return '${date.day} $month ${date.year}';
 }

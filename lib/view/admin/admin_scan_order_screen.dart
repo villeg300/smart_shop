@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
 import 'package:smart_shop/view/admin/admin_order_detail_screen.dart';
 
+enum AdminScanMode { find, confirm }
+
 class AdminScanOrderScreen extends StatefulWidget {
-  const AdminScanOrderScreen({super.key});
+  const AdminScanOrderScreen({
+    super.key,
+    this.mode = AdminScanMode.find,
+    this.title,
+  });
+
+  final AdminScanMode mode;
+  final String? title;
 
   @override
   State<AdminScanOrderScreen> createState() => _AdminScanOrderScreenState();
@@ -18,15 +27,30 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     facing: CameraFacing.back,
   );
 
+  late final AdminOrderController _adminOrderController;
   late final TextEditingController _manualOrderIdController;
+
+  PermissionStatus? _cameraPermissionStatus;
+  MobileScannerException? _scannerError;
   bool _isResolving = false;
-  bool? _scannerReady;
+
+  String get _screenTitle {
+    if (widget.title != null && widget.title!.trim().isNotEmpty) {
+      return widget.title!.trim();
+    }
+    return widget.mode == AdminScanMode.confirm
+        ? 'Scanner pour confirmer'
+        : 'Scanner une commande';
+  }
 
   @override
   void initState() {
     super.initState();
+    _adminOrderController = Get.isRegistered<AdminOrderController>()
+        ? Get.find<AdminOrderController>()
+        : Get.put(AdminOrderController());
     _manualOrderIdController = TextEditingController();
-    _initScanner();
+    _requestCameraPermission();
   }
 
   @override
@@ -36,33 +60,23 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     super.dispose();
   }
 
-  Future<void> _initScanner() async {
-    try {
-      await _scannerController.start();
-      await _scannerController.stop();
+  Future<void> _requestCameraPermission() async {
+    final current = await Permission.camera.status;
+
+    if (current.isGranted) {
       if (!mounted) return;
       setState(() {
-        _scannerReady = true;
+        _cameraPermissionStatus = current;
       });
-    } on MissingPluginException {
-      if (!mounted) return;
-      setState(() {
-        _scannerReady = false;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (Get.context == null) return;
-        Get.snackbar(
-          'Scanner indisponible',
-          'Le scanner QR n\'est pas chargé. Utilisez la saisie manuelle.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _scannerReady = false;
-      });
+      return;
     }
+
+    final requested = await Permission.camera.request();
+    if (!mounted) return;
+
+    setState(() {
+      _cameraPermissionStatus = requested;
+    });
   }
 
   Future<void> _handleRawValue(String rawValue) async {
@@ -82,12 +96,21 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
       _isResolving = true;
     });
 
-    if (_scannerReady == true) {
-      try {
-        await _scannerController.stop();
-      } catch (_) {
-        // Ignorer les erreurs scanner à ce stade, navigation prioritaire.
+    if (widget.mode == AdminScanMode.confirm) {
+      final confirmed = await _adminOrderController.confirmOrderById(orderId);
+      if (!confirmed) {
+        if (!mounted) return;
+        setState(() {
+          _isResolving = false;
+        });
+        return;
       }
+    }
+
+    try {
+      await _scannerController.stop();
+    } catch (_) {
+      // Le flux continue même si le stop échoue.
     }
 
     if (!mounted) return;
@@ -100,42 +123,110 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     await _handleRawValue(raw);
   }
 
+  void _handleScannerError(MobileScannerException error) {
+    if (_scannerError?.errorCode == error.errorCode) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _scannerError = error;
+      });
+    });
+  }
+
+  String _scannerErrorMessage(MobileScannerException error) {
+    switch (error.errorCode) {
+      case MobileScannerErrorCode.permissionDenied:
+        return 'Permission caméra refusée. Autorisez la caméra pour scanner.';
+      case MobileScannerErrorCode.unsupported:
+        return 'Scanner non supporté. Sur émulateur sans caméra, utilisez un appareil réel.';
+      case MobileScannerErrorCode.controllerNotAttached:
+      case MobileScannerErrorCode.controllerInitializing:
+      case MobileScannerErrorCode.controllerUninitialized:
+      case MobileScannerErrorCode.controllerAlreadyInitialized:
+      case MobileScannerErrorCode.controllerDisposed:
+      case MobileScannerErrorCode.genericError:
+        return 'Initialisation caméra impossible (${error.errorCode.name}).';
+    }
+  }
+
+  Widget _buildUnavailableScanner(BuildContext context, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.qr_code_scanner_outlined,
+              size: 52,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _scannerError = null;
+                    });
+                    _requestCameraPermission();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                ),
+                if (_cameraPermissionStatus?.isPermanentlyDenied == true)
+                  ElevatedButton.icon(
+                    onPressed: openAppSettings,
+                    icon: const Icon(Icons.settings_outlined),
+                    label: const Text('Paramètres'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'La saisie manuelle reste disponible ci-dessous.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildScannerArea(BuildContext context) {
-    if (_scannerReady == null) {
+    if (_cameraPermissionStatus == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_scannerReady == false) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.qr_code_scanner_outlined,
-                size: 52,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Scanner non disponible sur cette session.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Utilisez la saisie manuelle de l\'ID commande.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
+    if (_cameraPermissionStatus?.isGranted != true) {
+      final text = _cameraPermissionStatus?.isPermanentlyDenied == true
+          ? 'Permission caméra bloquée. Activez-la dans les paramètres Android.'
+          : 'Permission caméra requise pour scanner.';
+      return _buildUnavailableScanner(context, text);
+    }
+
+    if (_scannerError != null) {
+      return _buildUnavailableScanner(
+        context,
+        _scannerErrorMessage(_scannerError!),
       );
     }
 
@@ -152,6 +243,13 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
               _handleRawValue(raw);
               break;
             }
+          },
+          errorBuilder: (context, error) {
+            _handleScannerError(error);
+            return _buildUnavailableScanner(
+              context,
+              _scannerErrorMessage(error),
+            );
           },
         ),
         IgnorePointer(
@@ -179,10 +277,12 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
               color: Colors.black.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              'Placez le QR de la commande dans le cadre',
+            child: Text(
+              widget.mode == AdminScanMode.confirm
+                  ? 'Scannez pour confirmer la commande'
+                  : 'Placez le QR de la commande dans le cadre',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ),
@@ -197,11 +297,12 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scannerEnabled = _scannerReady == true;
+    final scannerEnabled =
+        _cameraPermissionStatus?.isGranted == true && _scannerError == null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scanner une commande'),
+        title: Text(_screenTitle),
         actions: [
           IconButton(
             tooltip: 'Activer/Désactiver flash',
@@ -262,7 +363,11 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
                       const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: _openManualOrder,
-                        child: const Text('Ouvrir'),
+                        child: Text(
+                          widget.mode == AdminScanMode.confirm
+                              ? 'Confirmer'
+                              : 'Ouvrir',
+                        ),
                       ),
                     ],
                   ),

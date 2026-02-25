@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_shop/constants/order_status_constants.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
 import 'package:smart_shop/models/order.dart';
 import 'package:smart_shop/utils/app_responsive.dart';
@@ -7,18 +8,30 @@ import 'package:smart_shop/utils/app_textstyles.dart';
 import 'package:smart_shop/view/admin/admin_order_detail_screen.dart';
 import 'package:smart_shop/view/admin/admin_scan_order_screen.dart';
 
-class AdminOrdersScreen extends StatefulWidget {
+class AdminOrdersScreen extends StatelessWidget {
   const AdminOrdersScreen({super.key});
 
   @override
-  State<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Commandes admin')),
+      body: const AdminOrdersTab(),
+    );
+  }
 }
 
-class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
+class AdminOrdersTab extends StatefulWidget {
+  const AdminOrdersTab({super.key});
+
+  @override
+  State<AdminOrdersTab> createState() => _AdminOrdersTabState();
+}
+
+class _AdminOrdersTabState extends State<AdminOrdersTab> {
   late final AdminOrderController _controller;
   late final TextEditingController _searchController;
 
-  _OrderFilterOption _selectedFilter = _OrderFilterOption.all;
+  OrderStatus _selectedStatus = OrderStatus.pending;
 
   @override
   void initState() {
@@ -26,22 +39,18 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     _controller = Get.isRegistered<AdminOrderController>()
         ? Get.find<AdminOrderController>()
         : Get.put(AdminOrderController());
+
     _searchController = TextEditingController(
       text: _controller.searchQuery.value,
     );
 
-    if (_controller.selectedStatusFilter.value.isNotEmpty) {
-      _selectedFilter = _OrderFilterOption.values.firstWhere(
-        (filter) => filter.apiValue == _controller.selectedStatusFilter.value,
-        orElse: () => _OrderFilterOption.all,
-      );
+    final selected = _controller.selectedStatusFilter.value;
+    if (selected.isNotEmpty) {
+      _selectedStatus = OrderStatus.fromString(selected);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _controller.loadOrders(
-        status: _selectedFilter.apiValue,
-        query: _searchController.text.trim(),
-      );
+      _loadOrders();
     });
   }
 
@@ -51,178 +60,176 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     super.dispose();
   }
 
-  Future<void> _applyFilters() async {
+  Future<void> _loadOrders({bool showLoader = true}) async {
     await _controller.loadOrders(
-      status: _selectedFilter.apiValue,
+      status: OrderStatusConstants.backendValue(_selectedStatus),
       query: _searchController.text.trim(),
+      showLoader: showLoader,
     );
   }
 
-  Future<void> _clearFilters() async {
-    setState(() {
-      _selectedFilter = _OrderFilterOption.all;
-      _searchController.clear();
-    });
-    await _controller.loadOrders(status: null, query: '');
+  Future<void> _openFindScanner() async {
+    await Get.to(
+      () => const AdminScanOrderScreen(
+        mode: AdminScanMode.find,
+        title: 'Chercher une commande',
+      ),
+    );
+    await _loadOrders(showLoader: false);
   }
 
-  Future<void> _quickUpdateStatus(Order order, String newStatus) async {
-    final ok = await _controller.updateStatus(
-      orderId: order.id,
-      status: newStatus,
+  Future<void> _openConfirmScanner() async {
+    await Get.to(
+      () => const AdminScanOrderScreen(
+        mode: AdminScanMode.confirm,
+        title: 'Confirmer une commande',
+      ),
     );
-    if (ok) {
-      await _controller.loadOrders(
-        status: _selectedFilter.apiValue,
-        query: _searchController.text.trim(),
-        showLoader: false,
-      );
-    }
+    await _loadOrders(showLoader: false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final padding = AppResponsive.pagePadding(context);
-    final spacing = AppResponsive.sectionSpacing(context);
+    final pagePadding = AppResponsive.pagePadding(context);
+    final itemSpacing = AppResponsive.itemSpacing(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestion des commandes'),
-        actions: [
-          IconButton(
-            tooltip: 'Scanner une commande',
-            onPressed: () => Get.to(() => const AdminScanOrderScreen()),
-            icon: const Icon(Icons.qr_code_scanner_outlined),
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.contentMaxWidth(context),
           ),
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _applyFilters,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: AppResponsive.contentMaxWidth(context),
-            ),
-            child: Padding(
-              padding: padding,
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: pagePadding,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _openFindScanner,
+                        icon: const Icon(Icons.qr_code_scanner_outlined),
+                        label: const Text('Chercher'),
+                      ),
                     ),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: _searchController,
-                          textInputAction: TextInputAction.search,
-                          decoration: const InputDecoration(
-                            labelText:
-                                'Rechercher (ID, client, email, téléphone)',
-                            prefixIcon: Icon(Icons.search),
-                          ),
-                          onSubmitted: (_) => _applyFilters(),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openConfirmScanner,
+                        icon: const Icon(Icons.verified_outlined),
+                        label: const Text('Confirmer'),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: itemSpacing),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        decoration: const InputDecoration(
+                          hintText: 'Rechercher (ID, client, email, téléphone)',
+                          prefixIcon: Icon(Icons.search),
                         ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<_OrderFilterOption>(
-                          initialValue: _selectedFilter,
-                          decoration: const InputDecoration(
-                            labelText: 'Statut',
-                            prefixIcon: Icon(Icons.filter_alt_outlined),
-                          ),
-                          items: _OrderFilterOption.values
-                              .map(
-                                (filter) =>
-                                    DropdownMenuItem<_OrderFilterOption>(
-                                      value: filter,
-                                      child: Text(filter.label),
-                                    ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _selectedFilter = value;
-                            });
-                          },
+                        onSubmitted: (_) => _loadOrders(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonalIcon(
+                      onPressed: _loadOrders,
+                      icon: const Icon(Icons.search),
+                      label: const Text('OK'),
+                    ),
+                  ],
+                ),
+                SizedBox(height: itemSpacing),
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: OrderStatusConstants.backendStatuses.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final status =
+                          OrderStatusConstants.backendStatuses[index];
+                      final isSelected = status == _selectedStatus;
+                      final visual = OrderStatusConstants.visual(
+                        context,
+                        status,
+                      );
+
+                      return ChoiceChip(
+                        selected: isSelected,
+                        label: Text(OrderStatusConstants.label(status)),
+                        avatar: Icon(
+                          OrderStatusConstants.icon(status),
+                          size: 16,
+                          color: isSelected
+                              ? visual.foreground
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 10),
-                        Row(
+                        selectedColor: visual.background,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedStatus = status;
+                          });
+                          _loadOrders();
+                        },
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: itemSpacing),
+                Expanded(
+                  child: Obx(() {
+                    final orders = _controller.orders;
+
+                    if (_controller.isLoading.value && orders.isEmpty) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (orders.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: () => _loadOrders(showLoader: false),
+                        child: ListView(
                           children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _applyFilters,
-                                icon: const Icon(Icons.search),
-                                label: const Text('Appliquer'),
-                              ),
+                            const SizedBox(height: 120),
+                            Icon(
+                              Icons.receipt_long,
+                              size: 66,
+                              color: Theme.of(context).colorScheme.outline,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _clearFilters,
-                                icon: const Icon(Icons.clear_all),
-                                label: const Text('Réinitialiser'),
-                              ),
+                            const SizedBox(height: 12),
+                            const Center(
+                              child: Text('Aucune commande pour ce statut'),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: spacing),
-                  Expanded(
-                    child: Obx(() {
-                      final orders = _controller.orders;
-
-                      if (_controller.isLoading.value && orders.isEmpty) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (orders.isEmpty) {
-                        return RefreshIndicator(
-                          onRefresh: _applyFilters,
-                          child: ListView(
-                            children: const [
-                              SizedBox(height: 120),
-                              Icon(Icons.receipt_long, size: 66),
-                              SizedBox(height: 12),
-                              Center(
-                                child: Text('Aucune commande pour ces filtres'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return RefreshIndicator(
-                        onRefresh: _applyFilters,
-                        child: ListView.separated(
-                          itemCount: orders.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final order = orders[index];
-                            return _AdminOrderCard(
-                              order: order,
-                              onTap: () => Get.to(
-                                () => AdminOrderDetailScreen(orderId: order.id),
-                              ),
-                              onQuickStatusChange: (status) =>
-                                  _quickUpdateStatus(order, status),
-                            );
-                          },
-                        ),
                       );
-                    }),
-                  ),
-                ],
-              ),
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () => _loadOrders(showLoader: false),
+                      child: ListView.separated(
+                        itemCount: orders.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final order = orders[index];
+                          return _AdminOrderCard(
+                            order: order,
+                            onTap: () => Get.to(
+                              () => AdminOrderDetailScreen(orderId: order.id),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
           ),
         ),
@@ -232,28 +239,24 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 }
 
 class _AdminOrderCard extends StatelessWidget {
-  const _AdminOrderCard({
-    required this.order,
-    required this.onTap,
-    required this.onQuickStatusChange,
-  });
+  const _AdminOrderCard({required this.order, required this.onTap});
 
   final Order order;
   final VoidCallback onTap;
-  final ValueChanged<String> onQuickStatusChange;
 
   @override
   Widget build(BuildContext context) {
-    final statusStyle = _statusStyle(context, order.status);
+    final visual = OrderStatusConstants.visual(context, order.status);
 
     return Card(
-      margin: EdgeInsets.zero,
       elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.06),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -271,41 +274,38 @@ class _AdminOrderCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _StatusBadge(style: statusStyle),
-                  PopupMenuButton<String>(
-                    tooltip: 'Changer le statut',
-                    itemBuilder: (context) => _OrderFilterOption.values
-                        .where((s) => s.apiValue.isNotEmpty)
-                        .map(
-                          (status) => PopupMenuItem<String>(
-                            value: status.apiValue,
-                            child: Text(status.label),
-                          ),
-                        )
-                        .toList(),
-                    onSelected: onQuickStatusChange,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: visual.background,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      OrderStatusConstants.label(order.status),
+                      style: TextStyle(
+                        color: visual.foreground,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               _InfoLine(
                 icon: Icons.person_outline,
                 text: order.userFullName ?? 'Client non renseigné',
               ),
-              if ((order.userPhoneNumber ?? '').trim().isNotEmpty)
-                _InfoLine(
-                  icon: Icons.phone_outlined,
-                  text: order.userPhoneNumber!.trim(),
-                )
-              else if ((order.userEmail ?? '').trim().isNotEmpty)
-                _InfoLine(
-                  icon: Icons.email_outlined,
-                  text: order.userEmail!.trim(),
-                ),
               _InfoLine(
-                icon: Icons.calendar_month_outlined,
-                text:
-                    '${_formatDate(order.createdAt)} • ${_formatPickup(order.pickupDate, order.pickupTime)}',
+                icon: Icons.calendar_today_outlined,
+                text: _formatDate(order.createdAt),
+              ),
+              _InfoLine(
+                icon: Icons.store_mall_directory_outlined,
+                text: _formatPickup(order.pickupDate, order.pickupTime),
               ),
               const SizedBox(height: 8),
               Row(
@@ -326,10 +326,7 @@ class _AdminOrderCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: onTap,
-                    child: const Text('Détails'),
-                  ),
+                  const Icon(Icons.chevron_right),
                 ],
               ),
             ],
@@ -349,12 +346,12 @@ class _InfoLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 3),
+      padding: const EdgeInsets.only(top: 4),
       child: Row(
         children: [
           Icon(
             icon,
-            size: 16,
+            size: 15,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: 6),
@@ -364,94 +361,14 @@ class _InfoLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
               ),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.style});
-
-  final _StatusStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: style.background,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        style.label,
-        style: TextStyle(
-          color: style.foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusStyle {
-  const _StatusStyle({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
-
-  final String label;
-  final Color background;
-  final Color foreground;
-}
-
-_StatusStyle _statusStyle(BuildContext context, OrderStatus status) {
-  final scheme = Theme.of(context).colorScheme;
-
-  switch (status) {
-    case OrderStatus.pending:
-      return _StatusStyle(
-        label: 'En attente',
-        background: scheme.surfaceContainerHighest,
-        foreground: scheme.onSurfaceVariant,
-      );
-    case OrderStatus.confirmed:
-      return _StatusStyle(
-        label: 'Confirmée',
-        background: Colors.green.withValues(alpha: 0.18),
-        foreground: Colors.green.shade800,
-      );
-    case OrderStatus.processing:
-      return _StatusStyle(
-        label: 'Traitement',
-        background: Colors.blue.withValues(alpha: 0.16),
-        foreground: Colors.blue.shade700,
-      );
-    case OrderStatus.shipped:
-      return _StatusStyle(
-        label: 'Expédiée',
-        background: Colors.indigo.withValues(alpha: 0.16),
-        foreground: Colors.indigo.shade700,
-      );
-    case OrderStatus.delivered:
-      return _StatusStyle(
-        label: 'Livrée',
-        background: Colors.green.withValues(alpha: 0.2),
-        foreground: Colors.green.shade900,
-      );
-    case OrderStatus.cancelled:
-      return _StatusStyle(
-        label: 'Annulée',
-        background: scheme.errorContainer.withValues(alpha: 0.75),
-        foreground: scheme.onErrorContainer,
-      );
   }
 }
 
@@ -470,6 +387,7 @@ String _formatDate(DateTime date) {
     11: 'Nov',
     12: 'Dec',
   };
+
   final month = months[date.month] ?? '${date.month}';
   return '${date.day} $month ${date.year}';
 }
@@ -487,19 +405,4 @@ String _formatPickup(String? pickupDate, String? pickupTime) {
     return '$date à $shortTime';
   }
   return date.isNotEmpty ? date : shortTime;
-}
-
-enum _OrderFilterOption {
-  all(label: 'Tous les statuts', apiValue: ''),
-  pending(label: 'En attente', apiValue: 'pending'),
-  confirmed(label: 'Confirmée', apiValue: 'confirmed'),
-  processing(label: 'En traitement', apiValue: 'processing'),
-  shipped(label: 'Expédiée', apiValue: 'shipped'),
-  delivered(label: 'Livrée', apiValue: 'delivered'),
-  cancelled(label: 'Annulée', apiValue: 'cancelled');
-
-  const _OrderFilterOption({required this.label, required this.apiValue});
-
-  final String label;
-  final String apiValue;
 }
