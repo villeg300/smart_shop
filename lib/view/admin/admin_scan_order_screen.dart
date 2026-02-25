@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:smart_shop/controllers/admin_order_controller.dart';
@@ -19,11 +20,13 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
 
   late final TextEditingController _manualOrderIdController;
   bool _isResolving = false;
+  bool? _scannerReady;
 
   @override
   void initState() {
     super.initState();
     _manualOrderIdController = TextEditingController();
+    _initScanner();
   }
 
   @override
@@ -31,6 +34,35 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     _manualOrderIdController.dispose();
     _scannerController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initScanner() async {
+    try {
+      await _scannerController.start();
+      await _scannerController.stop();
+      if (!mounted) return;
+      setState(() {
+        _scannerReady = true;
+      });
+    } on MissingPluginException {
+      if (!mounted) return;
+      setState(() {
+        _scannerReady = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Get.context == null) return;
+        Get.snackbar(
+          'Scanner indisponible',
+          'Le scanner QR n\'est pas chargé. Utilisez la saisie manuelle.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _scannerReady = false;
+      });
+    }
   }
 
   Future<void> _handleRawValue(String rawValue) async {
@@ -50,9 +82,15 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
       _isResolving = true;
     });
 
-    await _scannerController.stop();
-    if (!mounted) return;
+    if (_scannerReady == true) {
+      try {
+        await _scannerController.stop();
+      } catch (_) {
+        // Ignorer les erreurs scanner à ce stade, navigation prioritaire.
+      }
+    }
 
+    if (!mounted) return;
     Get.off(() => AdminOrderDetailScreen(orderId: orderId));
   }
 
@@ -62,20 +100,121 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
     await _handleRawValue(raw);
   }
 
+  Widget _buildScannerArea(BuildContext context) {
+    if (_scannerReady == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_scannerReady == false) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.qr_code_scanner_outlined,
+                size: 52,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Scanner non disponible sur cette session.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Utilisez la saisie manuelle de l\'ID commande.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: _scannerController,
+          onDetect: (capture) {
+            for (final barcode in capture.barcodes) {
+              final raw = barcode.rawValue;
+              if (raw == null || raw.trim().isEmpty) {
+                continue;
+              }
+              _handleRawValue(raw);
+              break;
+            }
+          },
+        ),
+        IgnorePointer(
+          child: Center(
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 18,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'Placez le QR de la commande dans le cadre',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ),
+        if (_isResolving)
+          Container(
+            color: Colors.black45,
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scannerEnabled = _scannerReady == true;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scanner une commande'),
         actions: [
           IconButton(
             tooltip: 'Activer/Désactiver flash',
-            onPressed: () => _scannerController.toggleTorch(),
+            onPressed: scannerEnabled
+                ? () => _scannerController.toggleTorch()
+                : null,
             icon: const Icon(Icons.flashlight_on_outlined),
           ),
           IconButton(
             tooltip: 'Changer caméra',
-            onPressed: () => _scannerController.switchCamera(),
+            onPressed: scannerEnabled
+                ? () => _scannerController.switchCamera()
+                : null,
             icon: const Icon(Icons.cameraswitch_outlined),
           ),
         ],
@@ -83,65 +222,7 @@ class _AdminScanOrderScreenState extends State<AdminScanOrderScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  MobileScanner(
-                    controller: _scannerController,
-                    onDetect: (capture) {
-                      for (final barcode in capture.barcodes) {
-                        final raw = barcode.rawValue;
-                        if (raw == null || raw.trim().isEmpty) {
-                          continue;
-                        }
-                        _handleRawValue(raw);
-                        break;
-                      }
-                    },
-                  ),
-                  IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        width: 220,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 18,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Placez le QR de la commande dans le cadre',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  if (_isResolving)
-                    Container(
-                      color: Colors.black45,
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                ],
-              ),
-            ),
+            Expanded(child: _buildScannerArea(context)),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/config/app_config.dart';
 import 'package:smart_shop/models/order.dart';
@@ -21,10 +22,18 @@ class AdminOrderController extends GetxController {
     _service = AdminOrderService(ApiClient(baseUrl: AppConfig.baseUrl));
   }
 
+  void _showSnackbarSafely(String title, String message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.context == null) return;
+      Get.snackbar(title, message, snackPosition: SnackPosition.BOTTOM);
+    });
+  }
+
   Future<void> loadOrders({
     String? status,
     String? query,
     bool showLoader = true,
+    bool notifyOnError = true,
   }) async {
     try {
       if (showLoader) {
@@ -41,19 +50,24 @@ class AdminOrderController extends GetxController {
         query: searchQuery.value,
       );
 
-      orders.value = fetched;
+      orders.assignAll(fetched);
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger les commandes admin: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (notifyOnError) {
+        _showSnackbarSafely(
+          'Erreur',
+          'Impossible de charger les commandes admin: $e',
+        );
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<Order?> loadOrderById(String orderId, {bool showLoader = true}) async {
+  Future<Order?> loadOrderById(
+    String orderId, {
+    bool showLoader = true,
+    bool notifyOnError = true,
+  }) async {
     try {
       if (showLoader) {
         isLoading.value = true;
@@ -63,11 +77,12 @@ class AdminOrderController extends GetxController {
       selectedOrder.value = order;
       return order;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Commande introuvable ou inaccessible: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (notifyOnError) {
+        _showSnackbarSafely(
+          'Erreur',
+          'Commande introuvable ou inaccessible: $e',
+        );
+      }
       return null;
     } finally {
       isLoading.value = false;
@@ -78,6 +93,7 @@ class AdminOrderController extends GetxController {
     required String orderId,
     required String status,
     String? adminNotes,
+    bool notifyOnError = true,
   }) async {
     try {
       isUpdating.value = true;
@@ -93,18 +109,15 @@ class AdminOrderController extends GetxController {
         orders[index] = updated;
       }
 
-      Get.snackbar(
-        'Succès',
-        'Statut de commande mis à jour',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _showSnackbarSafely('Succès', 'Statut de commande mis à jour');
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de mettre à jour le statut: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (notifyOnError) {
+        _showSnackbarSafely(
+          'Erreur',
+          'Impossible de mettre à jour le statut: $e',
+        );
+      }
       return false;
     } finally {
       isUpdating.value = false;

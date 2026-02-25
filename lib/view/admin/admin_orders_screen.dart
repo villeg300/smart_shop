@@ -37,10 +37,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       );
     }
 
-    _controller.loadOrders(
-      status: _selectedFilter.apiValue,
-      query: _searchController.text.trim(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadOrders(
+        status: _selectedFilter.apiValue,
+        query: _searchController.text.trim(),
+      );
+    });
   }
 
   @override

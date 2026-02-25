@@ -28,7 +28,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ? Get.find<AdminOrderController>()
         : Get.put(AdminOrderController());
     _adminNotesController = TextEditingController();
-    _loadOrder();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOrder();
+    });
   }
 
   @override

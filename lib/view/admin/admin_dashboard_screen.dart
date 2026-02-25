@@ -24,7 +24,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _controller = Get.isRegistered<AdminOrderController>()
         ? Get.find<AdminOrderController>()
         : Get.put(AdminOrderController());
-    _controller.loadOrders();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadOrders();
+    });
   }
 
   Future<void> _refresh() async {
