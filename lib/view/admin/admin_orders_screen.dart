@@ -78,11 +78,11 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
     await _loadOrders(showLoader: false);
   }
 
-  Future<void> _openProcessScanner() async {
+  Future<void> _openPickupScanner() async {
     await Get.to(
       () => const AdminScanOrderScreen(
-        mode: AdminScanMode.process,
-        title: 'Prendre en charge une commande',
+        mode: AdminScanMode.pickup,
+        title: 'Marquer une commande récupérée',
       ),
     );
     await _loadOrders(showLoader: false);
@@ -116,9 +116,9 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _openProcessScanner,
+                        onPressed: _openPickupScanner,
                         icon: const Icon(Icons.verified_outlined),
-                        label: const Text('Prendre en charge'),
+                        label: const Text('Récupérer'),
                       ),
                     ),
                   ],

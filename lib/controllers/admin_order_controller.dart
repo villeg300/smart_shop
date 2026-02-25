@@ -133,7 +133,7 @@ class AdminOrderController extends GetxController {
     }
   }
 
-  Future<bool> markOrderProcessingById(String orderId) async {
+  Future<bool> markOrderPickedUpById(String orderId) async {
     final order = await loadOrderById(
       orderId,
       showLoader: false,
@@ -145,23 +145,23 @@ class AdminOrderController extends GetxController {
       return false;
     }
 
-    if (order.status != OrderStatus.pending) {
+    if (order.status != OrderStatus.ready) {
       _showSnackbarSafely(
         'Info',
-        'La commande est déjà ${OrderStatusConstants.label(order.status).toLowerCase()}.',
+        'La commande doit être prête avant de la marquer récupérée.',
       );
       return false;
     }
 
     return updateStatus(
       orderId: orderId,
-      status: OrderStatusConstants.backendValue(OrderStatus.processing),
+      status: OrderStatusConstants.backendValue(OrderStatus.pickedUp),
       notifyOnSuccess: true,
     );
   }
 
   Future<bool> confirmOrderById(String orderId) {
-    return markOrderProcessingById(orderId);
+    return markOrderPickedUpById(orderId);
   }
 
   static String? extractOrderIdFromScan(String rawValue) {

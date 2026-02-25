@@ -244,12 +244,12 @@ class _AdminStatsTab extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: () => Get.to(
                             () => const AdminScanOrderScreen(
-                              mode: AdminScanMode.process,
-                              title: 'Prendre en charge une commande',
+                              mode: AdminScanMode.pickup,
+                              title: 'Marquer une commande récupérée',
                             ),
                           ),
                           icon: const Icon(Icons.verified_outlined),
-                          label: const Text('Prendre en charge'),
+                          label: const Text('Récupérer'),
                         ),
                       ),
                     ],

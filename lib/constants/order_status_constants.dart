@@ -42,6 +42,7 @@ class OrderStatusConstants {
         return const <OrderStatus>[
           OrderStatus.pending,
           OrderStatus.processing,
+          OrderStatus.ready,
           OrderStatus.cancelled,
         ];
       case OrderStatus.processing:
