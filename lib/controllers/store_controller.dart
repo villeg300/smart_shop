@@ -8,12 +8,14 @@ import 'package:smart_shop/models/variant.dart';
 import 'package:smart_shop/services/api_client.dart';
 import 'package:smart_shop/services/cart_service.dart';
 import 'package:smart_shop/services/catalog_service.dart';
+import 'package:smart_shop/services/favorite_service.dart';
 
 import 'auth_controller.dart';
 
 class StoreController extends GetxController {
   late final CatalogService _catalogService;
   late final CartService _cartService;
+  late final FavoriteService _favoriteService;
   late final AuthController _authController;
 
   final RxList<Category> categories = <Category>[].obs;
@@ -24,11 +26,14 @@ class StoreController extends GetxController {
 
   final RxString selectedCategorySlug = 'toutes'.obs;
   final RxSet<String> favoriteProductIds = <String>{}.obs;
+  final RxList<Product> favoriteProducts = <Product>[].obs;
 
   final RxBool isLoadingCategories = false.obs;
   final RxBool isLoadingProducts = false.obs;
   final RxBool isLoadingCart = false.obs;
+  final RxBool isLoadingFavorites = false.obs;
   final RxBool isMutatingCart = false.obs;
+  final RxBool isMutatingFavorites = false.obs;
 
   final RxInt currentPage = 1.obs;
   final RxInt totalProducts = 0.obs;
@@ -43,14 +48,17 @@ class StoreController extends GetxController {
     final apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _catalogService = CatalogService(apiClient);
     _cartService = CartService(apiClient);
+    _favoriteService = FavoriteService(apiClient);
     _authController = Get.find<AuthController>();
 
     ever(_authController.currentUserRx, (user) {
       if (user == null) {
         _setCart(null);
+        _setFavorites(const <Product>[]);
         return;
       }
       initCart();
+      loadFavorites(showLoader: false);
     });
 
     loadCategories();
@@ -58,12 +66,20 @@ class StoreController extends GetxController {
 
     if (_authController.currentUser != null) {
       initCart();
+      loadFavorites(showLoader: false);
     }
   }
 
   void _setCart(Cart? newCart) {
     cart.value = newCart;
     cart.refresh();
+  }
+
+  void _setFavorites(List<Product> items) {
+    favoriteProducts.assignAll(items);
+    favoriteProductIds
+      ..clear()
+      ..addAll(items.map((product) => product.id));
   }
 
   CartItem? _findCartItemByVariant(String variantId) {
@@ -232,6 +248,34 @@ class StoreController extends GetxController {
       await _refreshCart();
     } catch (e) {
       debugPrint('Erreur refresh panier: $e');
+    }
+  }
+
+  Future<void> loadFavorites({bool showLoader = true}) async {
+    if (_authController.currentUser == null) {
+      _setFavorites(const <Product>[]);
+      return;
+    }
+
+    try {
+      if (showLoader) {
+        isLoadingFavorites.value = true;
+      }
+      final items = await _favoriteService.fetchFavorites();
+      _setFavorites(items);
+    } catch (e) {
+      debugPrint('Erreur chargement favoris: $e');
+      if (showLoader) {
+        Get.snackbar(
+          'Erreur',
+          'Impossible de charger les favoris',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      if (showLoader) {
+        isLoadingFavorites.value = false;
+      }
     }
   }
 
@@ -456,11 +500,55 @@ class StoreController extends GetxController {
     return favoriteProductIds.contains(product.id);
   }
 
-  void toggleFavorite(Product product) {
-    if (favoriteProductIds.contains(product.id)) {
+  Future<void> toggleFavorite(Product product) async {
+    if (isMutatingFavorites.value) {
+      return;
+    }
+
+    if (_authController.currentUser == null) {
+      Get.snackbar(
+        'Connexion requise',
+        'Connectez-vous pour gérer vos favoris',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final isAlreadyFavorite = favoriteProductIds.contains(product.id);
+    final previousIds = Set<String>.from(favoriteProductIds);
+    final previousProducts = List<Product>.from(favoriteProducts);
+
+    if (isAlreadyFavorite) {
       favoriteProductIds.remove(product.id);
+      favoriteProducts.removeWhere((item) => item.id == product.id);
     } else {
       favoriteProductIds.add(product.id);
+      if (!favoriteProducts.any((item) => item.id == product.id)) {
+        favoriteProducts.insert(0, product);
+      }
+    }
+
+    try {
+      isMutatingFavorites.value = true;
+
+      if (isAlreadyFavorite) {
+        await _favoriteService.removeFavorite(product.id);
+      } else {
+        await _favoriteService.addFavorite(product.id);
+      }
+    } catch (e) {
+      favoriteProductIds
+        ..clear()
+        ..addAll(previousIds);
+      favoriteProducts.assignAll(previousProducts);
+
+      Get.snackbar(
+        'Erreur',
+        'Impossible de mettre à jour les favoris',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isMutatingFavorites.value = false;
     }
   }
 
