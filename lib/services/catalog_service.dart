@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/category.dart';
 import '../models/product.dart';
 import '../models/variant.dart';
@@ -9,19 +8,6 @@ class CatalogService {
   CatalogService(this._client);
 
   final ApiClient _client;
-
-  Map<String, String> _headers({bool includeAuth = true}) {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    if (includeAuth && _client.accessToken != null) {
-      headers['Authorization'] = 'Bearer ${_client.accessToken}';
-    }
-
-    return headers;
-  }
 
   /// Récupérer toutes les catégories
   Future<List<Category>> fetchCategories() async {
@@ -83,9 +69,8 @@ class CatalogService {
         '${_client.baseUrl}/api/shop/products/',
       ).replace(queryParameters: params);
 
-      final response = await http.get(
-        uri,
-        headers: _headers(includeAuth: false),
+      final response = await _client.get(
+        uri.path + (uri.query.isNotEmpty ? '?${uri.query}' : ''),
       );
 
       if (response.statusCode == 200) {
@@ -173,9 +158,8 @@ class CatalogService {
         '${_client.baseUrl}/api/shop/variants/',
       ).replace(queryParameters: params);
 
-      final response = await http.get(
-        uri,
-        headers: _headers(includeAuth: false),
+      final response = await _client.get(
+        uri.path + (uri.query.isNotEmpty ? '?${uri.query}' : ''),
       );
 
       if (response.statusCode == 200) {
@@ -233,9 +217,8 @@ class CatalogService {
         '${_client.baseUrl}/api/shop/products/',
       ).replace(queryParameters: params);
 
-      final response = await http.get(
-        uri,
-        headers: _headers(includeAuth: false),
+      final response = await _client.get(
+        uri.path + (uri.query.isNotEmpty ? '?${uri.query}' : ''),
       );
 
       if (response.statusCode == 200) {

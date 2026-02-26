@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/controllers/auth_controller.dart';
@@ -17,9 +19,152 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _authController = Get.find<AuthController>();
+  Timer? _cooldownTimer;
+  int _remainingSeconds = 0;
+
+  bool get _isCooldownActive => _remainingSeconds > 0;
+
+  String get _cooldownLabel {
+    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _startCooldown({int seconds = 60}) {
+    _cooldownTimer?.cancel();
+    setState(() {
+      _remainingSeconds = seconds;
+    });
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_remainingSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _remainingSeconds = 0;
+        });
+        return;
+      }
+
+      setState(() {
+        _remainingSeconds -= 1;
+      });
+    });
+  }
+
+  void _showSuccessPopup({required String email, required Color primaryColor}) {
+    Get.dialog(
+      Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primaryColor.withValues(alpha: 0.14),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: primaryColor,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Email envoyé',
+                style: AppTextStyles.withWeight(
+                  AppTextStyles.h3,
+                  FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Un email de réinitialisation a été envoyé à',
+                style: AppTextStyles.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  email,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Fermer'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back();
+                        Get.to(() => const ResetPasswordScreen());
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                      ),
+                      child: const Text(
+                        'Continuer',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _emailController.dispose();
     super.dispose();
   }
@@ -32,96 +177,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
 
     if (success) {
-      // Afficher un dialog avec les instructions
-      Get.dialog(
-        AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.mark_email_read_outlined,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(width: 12),
-              const Expanded(child: Text('Email envoyé')),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nous avons envoyé un email de réinitialisation à :',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _emailController.text.trim(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.blue[700],
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Instructions',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '1. Vérifiez votre boîte mail\n'
-                      '2. Copiez le UID et le TOKEN\n'
-                      '3. Revenez ici pour réinitialiser',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: const Text('Fermer'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Get.back(); // Fermer le dialog
-                Get.to(() => const ResetPasswordScreen());
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-              ),
-              child: const Text(
-                'Continuer',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        barrierDismissible: false,
+      if (!mounted) return;
+      final primaryColor = Theme.of(context).primaryColor;
+      _startCooldown();
+      _showSuccessPopup(
+        email: _emailController.text.trim(),
+        primaryColor: primaryColor,
       );
     }
   }
@@ -161,17 +222,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 8),
-
-                  // Description
-                  Text(
-                    "Entrez votre adresse e-mail pour recevoir les codes de réinitialisation.",
-                    style: AppTextStyles.withColor(
-                      AppTextStyles.bodyLarge,
-                      isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                    ),
-                  ),
-
                   const SizedBox(height: 40),
 
                   // Champ email
@@ -191,41 +241,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // Info box
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).primaryColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.lightbulb_outline,
-                          color: Theme.of(context).primaryColor,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Vous recevrez un email avec un UID et un TOKEN à utiliser pour réinitialiser votre mot de passe.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? Colors.grey[300]
-                                  : Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   const SizedBox(height: 24),
 
                   // Bouton envoyer
@@ -233,7 +248,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     return SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _authController.isLoading
+                        onPressed:
+                            (_authController.isLoading || _isCooldownActive)
                             ? null
                             : _handleReset,
                         style: ElevatedButton.styleFrom(
@@ -255,7 +271,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                               )
                             : Text(
-                                "Envoyer les codes",
+                                _isCooldownActive
+                                    ? "Réactiver dans $_cooldownLabel"
+                                    : "Envoyer les codes",
                                 style: AppTextStyles.withColor(
                                   AppTextStyles.buttonMedium,
                                   Colors.white,
