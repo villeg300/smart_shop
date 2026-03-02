@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
@@ -80,10 +81,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         actions: [
-          // IconButton(
-          //   onPressed: () => Get.to(() => const CartScreen()),
-          //   icon: const Icon(Icons.shopping_bag_outlined),
-          // ),
           IconButton(
             onPressed: () =>
                 _shareProduct(context, product.name, product.description),
@@ -92,21 +89,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               color: isDark ? Colors.white : Colors.black,
             ),
           ),
-          // Obx(
-          //   () => IconButton(
-          //     onPressed: () => storeController.toggleFavorite(product),
-          //     icon: Icon(
-          //       storeController.isFavorite(product)
-          //           ? Icons.favorite
-          //           : Icons.favorite_border,
-          //       color: storeController.isFavorite(product)
-          //           ? Theme.of(context).primaryColor
-          //           : isDark
-          //           ? Colors.white
-          //           : Colors.black,
-          //     ),
-          //   ),
-          // ),
         ],
         title: Text(
           'Details',
@@ -342,8 +324,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 aspectRatio: 16 / 10,
                 child: _buildProductImage(imagePath),
               ),
-              // affichage du badge de promotion si la variente a une promotion
-              // exp : [icon Promo -10%] ou [icon Promo 5000 FCFA]
               if (promotionBadgeText != null)
                 Positioned(
                   left: 8,
@@ -487,6 +467,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildProductImage(String? imagePath) {
     const placeholder = 'assets/images/laptop.jpg';
+
     if (imagePath == null || imagePath.isEmpty) {
       return Image.asset(
         placeholder,
@@ -500,11 +481,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
 
     if (isNetwork) {
-      return Image.network(
-        imagePath,
+      return CachedNetworkImage(
+        imageUrl: imagePath,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
+        placeholder: (context, url) => Container(
+          width: double.infinity,
+          color: Colors.grey[300],
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) =>
             Image.asset(placeholder, width: double.infinity, fit: BoxFit.cover),
       );
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/config/app_config.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
@@ -70,6 +71,9 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     }
 
     final position = _scrollController.position;
+    if (position.userScrollDirection != ScrollDirection.reverse) {
+      return;
+    }
     if (position.pixels >= position.maxScrollExtent - 220) {
       _loadProducts(loadMore: true);
     }
@@ -166,7 +170,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       text: _maxPrice?.toStringAsFixed(0) ?? '',
     );
 
-    var selectedCategory = categories.any((c) => c.slug == _selectedCategorySlug)
+    var selectedCategory =
+        categories.any((c) => c.slug == _selectedCategorySlug)
         ? _selectedCategorySlug
         : categories.first.slug;
     var selectedSort = _sortKey;
@@ -325,14 +330,10 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
                             final parsedMin = minText.isEmpty
                                 ? null
-                                : double.tryParse(
-                                    minText.replaceAll(',', '.'),
-                                  );
+                                : double.tryParse(minText.replaceAll(',', '.'));
                             final parsedMax = maxText.isEmpty
                                 ? null
-                                : double.tryParse(
-                                    maxText.replaceAll(',', '.'),
-                                  );
+                                : double.tryParse(maxText.replaceAll(',', '.'));
 
                             if ((minText.isNotEmpty && parsedMin == null) ||
                                 (maxText.isNotEmpty && parsedMax == null)) {
@@ -596,7 +597,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
             onPressed: () {
               setState(() {
                 _showSearchField = !_showSearchField;
-                if (!_showSearchField && _searchController.text.trim().isEmpty) {
+                if (!_showSearchField &&
+                    _searchController.text.trim().isEmpty) {
                   _query = null;
                 }
               });
@@ -676,11 +678,15 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                               gridDelegate:
                                   SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount:
-                                        AppResponsive.gridCrossAxisCount(context),
-                                    mainAxisSpacing:
-                                        AppResponsive.gridSpacing(context),
-                                    crossAxisSpacing:
-                                        AppResponsive.gridSpacing(context),
+                                        AppResponsive.gridCrossAxisCount(
+                                          context,
+                                        ),
+                                    mainAxisSpacing: AppResponsive.gridSpacing(
+                                      context,
+                                    ),
+                                    crossAxisSpacing: AppResponsive.gridSpacing(
+                                      context,
+                                    ),
                                     childAspectRatio:
                                         AppResponsive.isMobile(context)
                                         ? 0.66

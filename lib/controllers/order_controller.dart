@@ -1,12 +1,16 @@
 import 'package:get/get.dart';
-import '../models/order.dart';
-import '../config/app_config.dart';
-import '../services/order_service.dart';
-import '../services/api_client.dart';
-import 'store_controller.dart';
+import 'package:smart_shop/config/app_config.dart';
+import 'package:smart_shop/controllers/auth_controller.dart';
+import 'package:smart_shop/controllers/store_controller.dart';
+import 'package:smart_shop/models/order.dart';
+import 'package:smart_shop/services/api_client.dart';
+import 'package:smart_shop/services/app_feedback_service.dart';
+import 'package:smart_shop/services/order_service.dart';
 
 class OrderController extends GetxController {
   late final OrderService _orderService;
+  late final AuthController _authController;
+  bool _bootstrapped = false;
 
   final RxList<Order> orders = <Order>[].obs;
   final Rx<Order?> currentOrder = Rx<Order?>(null);
@@ -18,12 +22,52 @@ class OrderController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Initialiser le service
     final apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _orderService = OrderService(apiClient);
+    _authController = Get.find<AuthController>();
 
-    // Charger les commandes
-    loadOrders();
+    ever(_authController.currentUserRx, (user) {
+      if (user == null) {
+        clearData();
+        return;
+      }
+      ensureBootstrapped(force: true);
+    });
+
+    if (_authController.currentUser != null) {
+      ensureBootstrapped();
+    }
+  }
+
+  Future<void> ensureBootstrapped({bool force = false}) async {
+    if (_bootstrapped && !force) {
+      return;
+    }
+    if (!_isAuthenticated()) {
+      clearData();
+      return;
+    }
+    _bootstrapped = true;
+    await loadOrders();
+  }
+
+  void clearData() {
+    orders.clear();
+    currentOrder.value = null;
+    isLoadingOrders.value = false;
+    isPlacingOrder.value = false;
+    _bootstrapped = false;
+  }
+
+  bool _isAuthenticated({bool notify = false}) {
+    final isAuthed = _authController.currentUser != null;
+    if (!isAuthed && notify) {
+      AppFeedbackService.showError(
+        title: 'Connexion requise',
+        message: 'Connectez-vous pour accéder à vos commandes.',
+      );
+    }
+    return isAuthed;
   }
 
   // =========================
@@ -31,16 +75,21 @@ class OrderController extends GetxController {
   // =========================
 
   Future<void> loadOrders() async {
+    if (!_isAuthenticated()) {
+      clearData();
+      return;
+    }
+
     try {
       isLoadingOrders.value = true;
 
       final fetchedOrders = await _orderService.fetchOrders();
       orders.value = fetchedOrders;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger les commandes: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger les commandes.',
       );
     } finally {
       isLoadingOrders.value = false;
@@ -48,14 +97,19 @@ class OrderController extends GetxController {
   }
 
   Future<void> loadOrderById(String orderId) async {
+    if (!_isAuthenticated()) {
+      clearData();
+      return;
+    }
+
     try {
       final order = await _orderService.fetchOrderById(orderId);
       currentOrder.value = order;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger la commande: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger la commande.',
       );
     }
   }
@@ -70,23 +124,24 @@ class OrderController extends GetxController {
     double shippingCost = 0,
     String customerNotes = '',
   }) async {
+    if (!_isAuthenticated(notify: true)) {
+      return false;
+    }
+
     try {
       isPlacingOrder.value = true;
 
-      // Récupérer le panier depuis StoreController
       final storeController = Get.find<StoreController>();
       final cart = storeController.cart.value;
 
       if (cart == null || cart.isEmpty) {
-        Get.snackbar(
-          'Erreur',
-          'Votre panier est vide',
-          snackPosition: SnackPosition.BOTTOM,
+        AppFeedbackService.showError(
+          title: 'Panier vide',
+          message: 'Votre panier est vide.',
         );
         return false;
       }
 
-      // Passer la commande
       final order = await _orderService.checkout(
         cartId: cart.id,
         pickupDate: pickupDate,
@@ -95,26 +150,26 @@ class OrderController extends GetxController {
         customerNotes: customerNotes,
       );
 
-      // Sauvegarder la commande
       currentOrder.value = order;
       orders.insert(0, order);
 
-      // Recharger le panier (qui devrait être vide maintenant)
       await storeController.loadCart(showLoader: false);
 
-      Get.snackbar(
-        'Succès',
-        'Commande passée avec succès!',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
+      AppFeedbackService.showSuccess(
+        title: 'Commande confirmée !',
+        message: 'Votre commande a bien été enregistrée.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'Voir mes commandes',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de passer la commande: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de passer la commande.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'Fermer',
       );
       return false;
     } finally {
@@ -127,33 +182,33 @@ class OrderController extends GetxController {
   // =========================
 
   Future<bool> cancelOrder(String orderId, {String reason = ''}) async {
+    if (!_isAuthenticated(notify: true)) {
+      return false;
+    }
+
     try {
       final order = await _orderService.cancelOrder(orderId, reason: reason);
 
-      // Mettre à jour dans la liste
       final index = orders.indexWhere((o) => o.id == orderId);
       if (index != -1) {
         orders[index] = order;
       }
 
-      // Mettre à jour la commande courante si c'est la même
       if (currentOrder.value?.id == orderId) {
         currentOrder.value = order;
       }
 
-      Get.snackbar(
-        'Succès',
-        'Commande annulée',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Commande annulée.',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible d\'annuler la commande: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible d\'annuler la commande.',
       );
       return false;
     }

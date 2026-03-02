@@ -71,7 +71,7 @@ class AuthService {
         final loginResponse = LoginResponse.fromJson(data);
 
         // Sauvegarder les tokens
-        _client.saveTokens(
+        await _client.saveTokens(
           access: loginResponse.tokens.accessToken,
           refresh: loginResponse.tokens.refreshToken,
         );
@@ -89,7 +89,7 @@ class AuthService {
   /// 3. DÉCONNEXION (Logout)
   /// Se déconnecter (supprimer les tokens localement)
   Future<void> logout() async {
-    _client.clearTokens();
+    await _client.clearTokens();
   }
 
   /// 4. RÉCUPÉRER LE PROFIL UTILISATEUR
@@ -216,6 +216,7 @@ class AuthService {
   /// Obtenir un nouveau access token avec le refresh token
   Future<bool> refreshToken() async {
     try {
+      await _client.isAuthenticatedAsync();
       if (_client.refreshToken == null) return false;
 
       final response = await http.post(
@@ -227,7 +228,7 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final newAccessToken = data['access'] as String;
-        _client.saveAccessToken(newAccessToken);
+        await _client.saveAccessToken(newAccessToken);
         return true;
       }
       return false;

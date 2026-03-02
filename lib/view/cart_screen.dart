@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
@@ -80,7 +81,6 @@ class _CartScreenState extends State<CartScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Get.back(),
-
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Theme.of(
                         context,
@@ -214,7 +214,6 @@ class _CartScreenState extends State<CartScreen> {
                           final item = items[index];
 
                           return Container(
-                            // padding: EdgeInsets.all(spacing),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
@@ -239,7 +238,6 @@ class _CartScreenState extends State<CartScreen> {
                                     size: 100,
                                   ),
                                 ),
-                                // SizedBox(width: spacing),
                                 Expanded(
                                   child: Padding(
                                     padding: const EdgeInsets.only(left: 12),
@@ -401,9 +399,9 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                               Text(
-                                '${_storeController.formattedCartTotal} FCFA',
+                                '${_storeController.formattedCartTotal} FCF',
                                 style: AppTextStyles.withColor(
-                                  AppTextStyles.h2,
+                                  AppTextStyles.h3,
                                   Theme.of(context).primaryColor,
                                 ),
                               ),
@@ -466,28 +464,25 @@ class _CartScreenState extends State<CartScreen> {
         uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
 
     if (isNetwork) {
-      return Image.network(
-        imagePath,
+      return CachedNetworkImage(
+        imageUrl: imagePath,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        gaplessPlayback: true,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return SizedBox(
-            width: size,
-            height: size,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
+        // Placeholder dimensionné à la taille de la vignette
+        placeholder: (context, url) => Container(
+          width: size,
+          height: size,
+          color: Colors.grey[300],
+          child: const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => Image.asset(
+          ),
+        ),
+        errorWidget: (context, url, error) => Image.asset(
           placeholder,
           width: size,
           height: size,

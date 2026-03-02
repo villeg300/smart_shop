@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:smart_shop/models/user.dart';
 import 'package:smart_shop/config/app_config.dart';
+import 'package:smart_shop/controllers/order_controller.dart';
 import 'package:smart_shop/services/api_client.dart';
+import 'package:smart_shop/services/app_feedback_service.dart';
 import 'package:smart_shop/services/auth_service.dart';
 
 /// Contrôleur d'authentification avec GetX
@@ -15,14 +19,16 @@ class AuthController extends GetxController {
   final Rx<User?> _currentUser = Rx<User?>(null);
   final RxBool _isLoading = false.obs;
   final RxBool _isFirstTime = true.obs;
+  final RxBool _isInitialized = false.obs;
+  Completer<void>? _initCompleter;
 
   // Getters
   User? get currentUser => _currentUser.value;
   Rx<User?> get currentUserRx => _currentUser;
   bool get isLoading => _isLoading.value;
   bool get isFirstTime => _isFirstTime.value;
-  bool get isAuthenticated =>
-      _apiClient.isAuthenticated && _currentUser.value != null;
+  bool get isInitialized => _isInitialized.value;
+  bool get isAuthenticated => _currentUser.value != null;
 
   @override
   void onInit() {
@@ -30,18 +36,33 @@ class AuthController extends GetxController {
     _apiClient = ApiClient(baseUrl: AppConfig.baseUrl);
     _authService = AuthService(_apiClient);
 
-    // Charger l'état initial
     _loadInitialState();
   }
 
   /// Charger l'état initial de l'application
   Future<void> _loadInitialState() async {
-    _isFirstTime.value = _storage.read('isFirstTime') ?? true;
+    _initCompleter ??= Completer<void>();
+    try {
+      _isFirstTime.value = _storage.read('isFirstTime') ?? true;
 
-    // Si l'utilisateur a des tokens, essayer de récupérer son profil
-    if (_apiClient.isAuthenticated) {
-      await loadCurrentUser();
+      if (await _apiClient.isAuthenticatedAsync()) {
+        await loadCurrentUser();
+        await _bootstrapUserScopedData();
+      }
+    } finally {
+      _isInitialized.value = true;
+      if (_initCompleter != null && !_initCompleter!.isCompleted) {
+        _initCompleter!.complete();
+      }
     }
+  }
+
+  Future<void> waitUntilInitialized() async {
+    if (_isInitialized.value) {
+      return;
+    }
+    _initCompleter ??= Completer<void>();
+    await _initCompleter!.future;
   }
 
   /// Marquer que ce n'est plus la première fois
@@ -70,16 +91,18 @@ class AuthController extends GetxController {
       );
 
       _currentUser.value = loginResponse.user;
+      await _bootstrapUserScopedData(force: true);
 
-      Get.snackbar(
-        'Succès',
-        'Compte créé avec succès !',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Bienvenue !',
+        message: 'Votre compte a été créé avec succès.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'Commencer',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppFeedbackService.showError(title: 'Inscription échouée', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -100,20 +123,16 @@ class AuthController extends GetxController {
       );
 
       _currentUser.value = loginResponse.user;
+      await _bootstrapUserScopedData(force: true);
 
-      Get.snackbar(
-        'Bienvenue',
-        'Connexion réussie !',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Bienvenue',
+        message: 'Connexion réussie !',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Erreur de connexion',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      AppFeedbackService.showError(title: 'Erreur de connexion', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -122,13 +141,13 @@ class AuthController extends GetxController {
 
   /// 3. DÉCONNEXION
   Future<void> logout() async {
-    await _authService.logout();
     _currentUser.value = null;
+    _resetUserScopedData();
+    await _authService.logout();
 
-    Get.snackbar(
-      'Déconnexion',
-      'Vous êtes déconnecté',
-      snackPosition: SnackPosition.BOTTOM,
+    AppFeedbackService.showSuccess(
+      title: 'Déconnexion',
+      message: 'Vous avez été déconnecté.',
     );
   }
 
@@ -138,8 +157,10 @@ class AuthController extends GetxController {
       final user = await _authService.getCurrentUser();
       _currentUser.value = user;
     } catch (e) {
-      // Si erreur (token expiré, etc.), déconnecter
-      await logout();
+      // Token expiré ou invalide — déconnexion silencieuse
+      await _authService.logout();
+      _currentUser.value = null;
+      _resetUserScopedData();
     }
   }
 
@@ -162,15 +183,14 @@ class AuthController extends GetxController {
 
       _currentUser.value = updatedUser;
 
-      Get.snackbar(
-        'Succès',
-        'Profil mis à jour',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Profil mis à jour.',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppFeedbackService.showError(title: 'Erreur', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -190,15 +210,16 @@ class AuthController extends GetxController {
         newPassword: newPassword,
       );
 
-      Get.snackbar(
-        'Succès',
-        'Mot de passe modifié',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Mot de passe modifié.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'OK',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppFeedbackService.showError(title: 'Erreur', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -212,15 +233,16 @@ class AuthController extends GetxController {
 
       await _authService.requestPasswordReset(email: email);
 
-      Get.snackbar(
-        'Email envoyé',
-        'Vérifiez votre boîte mail',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Email envoyé',
+        message: 'Vérifiez votre boîte mail.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'OK',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppFeedbackService.showError(title: 'Erreur', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -242,15 +264,16 @@ class AuthController extends GetxController {
         newPassword: newPassword,
       );
 
-      Get.snackbar(
-        'Succès',
-        'Mot de passe réinitialisé',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Mot de passe réinitialisé.',
+        mode: FeedbackDisplayMode.popup,
+        actionLabel: 'Se connecter',
       );
 
       return true;
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppFeedbackService.showError(title: 'Erreur', error: e);
       return false;
     } finally {
       _isLoading.value = false;
@@ -261,6 +284,18 @@ class AuthController extends GetxController {
   Future<void> refreshUserData() async {
     if (isAuthenticated) {
       await loadCurrentUser();
+    }
+  }
+
+  Future<void> _bootstrapUserScopedData({bool force = false}) async {
+    if (Get.isRegistered<OrderController>()) {
+      await Get.find<OrderController>().ensureBootstrapped(force: force);
+    }
+  }
+
+  void _resetUserScopedData() {
+    if (Get.isRegistered<OrderController>()) {
+      Get.find<OrderController>().clearData();
     }
   }
 }

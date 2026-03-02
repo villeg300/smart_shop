@@ -6,6 +6,7 @@ import 'package:smart_shop/models/category.dart';
 import 'package:smart_shop/models/product.dart';
 import 'package:smart_shop/models/variant.dart';
 import 'package:smart_shop/services/api_client.dart';
+import 'package:smart_shop/services/app_feedback_service.dart';
 import 'package:smart_shop/services/cart_service.dart';
 import 'package:smart_shop/services/catalog_service.dart';
 import 'package:smart_shop/services/favorite_service.dart';
@@ -38,6 +39,7 @@ class StoreController extends GetxController {
   final RxInt currentPage = 1.obs;
   final RxInt totalProducts = 0.obs;
   final RxBool hasMore = true.obs;
+  final RxBool isLoadingMoreProducts = false.obs;
 
   bool get isCartBusy => isLoadingCart.value || isMutatingCart.value;
 
@@ -111,10 +113,10 @@ class StoreController extends GetxController {
         ...fetchedCategories,
       ];
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger les catégories: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger les catégories.',
       );
     } finally {
       isLoadingCategories.value = false;
@@ -144,7 +146,15 @@ class StoreController extends GetxController {
 
   Future<void> loadProducts({bool loadMore = false}) async {
     try {
-      if (!loadMore) {
+      if (loadMore) {
+        if (isLoadingMoreProducts.value) {
+          return;
+        }
+        isLoadingMoreProducts.value = true;
+      } else {
+        if (isLoadingProducts.value) {
+          return;
+        }
         isLoadingProducts.value = true;
       }
 
@@ -164,18 +174,40 @@ class StoreController extends GetxController {
       totalProducts.value = result['count'] as int;
       hasMore.value = result['next'] != null;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger les produits: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      final message = e.toString().toLowerCase();
+      final looksLikeInvalidPage =
+          message.contains('404') ||
+          message.contains('page non valide') ||
+          message.contains('invalid page');
+
+      if (loadMore && looksLikeInvalidPage) {
+        if (currentPage.value > 1) {
+          currentPage.value--;
+        }
+        hasMore.value = false;
+        return;
+      }
+
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger les produits.',
       );
     } finally {
-      isLoadingProducts.value = false;
+      if (loadMore) {
+        isLoadingMoreProducts.value = false;
+      } else {
+        isLoadingProducts.value = false;
+      }
     }
   }
 
   Future<void> loadMoreProducts() async {
-    if (!hasMore.value || isLoadingProducts.value) return;
+    if (!hasMore.value ||
+        isLoadingProducts.value ||
+        isLoadingMoreProducts.value) {
+      return;
+    }
 
     currentPage.value++;
     await loadProducts(loadMore: true);
@@ -194,10 +226,10 @@ class StoreController extends GetxController {
           .where((variant) => variant.isActive && variant.stock > 0)
           .toList();
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger les variantes: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger les variantes.',
       );
       return [];
     }
@@ -217,10 +249,10 @@ class StoreController extends GetxController {
       _setCart(fetchedCart);
     } catch (e) {
       debugPrint('Erreur initialisation panier: $e');
-      Get.snackbar(
-        'Erreur',
-        'Impossible de charger le panier',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger le panier.',
       );
     } finally {
       isLoadingCart.value = false;
@@ -247,6 +279,7 @@ class StoreController extends GetxController {
     try {
       await _refreshCart();
     } catch (e) {
+      // Refresh silencieux — pas de notification utilisateur
       debugPrint('Erreur refresh panier: $e');
     }
   }
@@ -265,13 +298,15 @@ class StoreController extends GetxController {
       _setFavorites(items);
     } catch (e) {
       debugPrint('Erreur chargement favoris: $e');
-      if (showLoader) {
-        Get.snackbar(
-          'Erreur',
-          'Impossible de charger les favoris',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de charger les favoris.',
+        // Silencieux si appelé en arrière-plan
+        mode: showLoader
+            ? FeedbackDisplayMode.snackbar
+            : FeedbackDisplayMode.silent,
+      );
     } finally {
       if (showLoader) {
         isLoadingFavorites.value = false;
@@ -285,10 +320,9 @@ class StoreController extends GetxController {
     }
 
     if (_authController.currentUser == null) {
-      Get.snackbar(
-        'Connexion requise',
-        'Connectez-vous pour ajouter un article au panier',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Connexion requise',
+        message: 'Connectez-vous pour ajouter un article au panier.',
       );
       return false;
     }
@@ -328,18 +362,16 @@ class StoreController extends GetxController {
 
       await _refreshCart();
 
-      Get.snackbar(
-        'Succès',
-        'Article ajouté au panier',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Article ajouté au panier',
       );
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible d\'ajouter au panier: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible d\'ajouter au panier.',
       );
       return false;
     } finally {
@@ -372,11 +404,9 @@ class StoreController extends GetxController {
         }
       }
 
-      Get.snackbar(
-        'Succès',
-        'Article retiré du panier',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
+      AppFeedbackService.showSuccess(
+        title: 'Succès',
+        message: 'Article retiré du panier',
       );
       return true;
     } catch (e) {
@@ -385,10 +415,10 @@ class StoreController extends GetxController {
         _setCart(previousCart);
       }
 
-      Get.snackbar(
-        'Erreur',
-        'Impossible de retirer l\'article: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de retirer l\'article.',
       );
       return false;
     } finally {
@@ -441,10 +471,10 @@ class StoreController extends GetxController {
       }
 
       debugPrint('Erreur updateQuantity: $e');
-      Get.snackbar(
-        'Erreur',
-        'Impossible de mettre à jour la quantité',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de mettre à jour la quantité.',
       );
       return false;
     } finally {
@@ -473,22 +503,17 @@ class StoreController extends GetxController {
         _setCart(previousCart.copyWith(items: []));
       }
 
-      Get.snackbar(
-        'Succès',
-        'Panier vidé',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-      );
+      AppFeedbackService.showSuccess(title: 'Succès', message: 'Panier vidé');
       return true;
     } catch (e) {
       if (previousCart != null) {
         _setCart(previousCart);
       }
 
-      Get.snackbar(
-        'Erreur',
-        'Impossible de vider le panier: $e',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de vider le panier.',
       );
       return false;
     } finally {
@@ -506,10 +531,9 @@ class StoreController extends GetxController {
     }
 
     if (_authController.currentUser == null) {
-      Get.snackbar(
-        'Connexion requise',
-        'Connectez-vous pour gérer vos favoris',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Connexion requise',
+        message: 'Connectez-vous pour gérer vos favoris.',
       );
       return;
     }
@@ -542,10 +566,10 @@ class StoreController extends GetxController {
         ..addAll(previousIds);
       favoriteProducts.assignAll(previousProducts);
 
-      Get.snackbar(
-        'Erreur',
-        'Impossible de mettre à jour les favoris',
-        snackPosition: SnackPosition.BOTTOM,
+      AppFeedbackService.showError(
+        title: 'Erreur',
+        error: e,
+        fallbackMessage: 'Impossible de mettre à jour les favoris.',
       );
     } finally {
       isMutatingFavorites.value = false;

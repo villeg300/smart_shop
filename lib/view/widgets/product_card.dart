@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smart_shop/controllers/store_controller.dart';
@@ -21,8 +22,8 @@ class ProductCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withOpacity(0.3)
-                : Colors.grey.withOpacity(0.1),
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, 2),
@@ -148,6 +149,7 @@ class ProductCard extends StatelessWidget {
 
   Widget _buildProductImage(String? imagePath) {
     const placeholder = 'assets/images/laptop.jpg';
+
     if (imagePath == null || imagePath.isEmpty) {
       return Image.asset(
         placeholder,
@@ -161,11 +163,24 @@ class ProductCard extends StatelessWidget {
         uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
 
     if (isNetwork) {
-      return Image.network(
-        imagePath,
+      return CachedNetworkImage(
+        imageUrl: imagePath,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
+        // Shimmer-like placeholder pendant le chargement
+        placeholder: (context, url) => Container(
+          width: double.infinity,
+          color: Colors.grey[300],
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        // Fallback sur l'asset local en cas d'erreur
+        errorWidget: (context, url, error) =>
             Image.asset(placeholder, width: double.infinity, fit: BoxFit.cover),
       );
     }

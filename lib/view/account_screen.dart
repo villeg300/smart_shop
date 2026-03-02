@@ -6,7 +6,6 @@ import 'package:smart_shop/utils/app_textstyles.dart';
 import 'package:smart_shop/view/account_change_password_screen.dart';
 import 'package:smart_shop/view/account_orders_screen.dart';
 import 'package:smart_shop/view/account_settings_screen.dart';
-import 'package:smart_shop/view/admin/admin_dashboard_screen.dart';
 import 'package:smart_shop/view/edit_profile_screen.dart';
 import 'package:smart_shop/view/signin_screen.dart';
 
@@ -219,13 +218,6 @@ class AccountScreen extends StatelessWidget {
                         onTap: () =>
                             Get.to(() => const AccountSettingsScreen()),
                       ),
-                      if (user.isAdminOrStaff)
-                        _AccountTile(
-                          icon: Icons.admin_panel_settings_outlined,
-                          title: "Tableau de bord",
-                          onTap: () =>
-                              Get.to(() => const AdminDashboardScreen()),
-                        ),
                       const Divider(height: 32),
                       _AccountTile(
                         icon: Icons.logout,

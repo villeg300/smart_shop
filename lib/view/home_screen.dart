@@ -46,8 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (notification) {
-                    if (notification.metrics.pixels >=
-                        notification.metrics.maxScrollExtent - 200) {
+                    if (notification is ScrollUpdateNotification &&
+                        (notification.scrollDelta ?? 0) > 0 &&
+                        storeController.hasMore.value &&
+                        !storeController.isLoadingMoreProducts.value &&
+                        notification.metrics.extentAfter < 220) {
                       storeController.loadMoreProducts();
                     }
                     return false;
@@ -283,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         }),
                       ),
                       Obx(() {
-                        if (storeController.isLoadingProducts.value &&
+                        if (storeController.isLoadingMoreProducts.value &&
                             storeController.filteredProducts.isNotEmpty) {
                           return const SliverToBoxAdapter(
                             child: Center(

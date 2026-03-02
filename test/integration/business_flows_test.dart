@@ -123,21 +123,27 @@ class FakeApiClient implements ApiClient {
   bool get isAuthenticated => _accessToken != null && _refreshToken != null;
 
   @override
-  void saveTokens({required String access, required String refresh}) {
+  Future<void> saveTokens({
+    required String access,
+    required String refresh,
+  }) async {
     _accessToken = access;
     _refreshToken = refresh;
   }
 
   @override
-  void saveAccessToken(String access) {
+  Future<void> saveAccessToken(String access) async {
     _accessToken = access;
   }
 
   @override
-  void clearTokens() {
+  Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
   }
+
+  @override
+  Future<bool> isAuthenticatedAsync() async => isAuthenticated;
 
   @override
   Future<http.Response> get(String path) async {

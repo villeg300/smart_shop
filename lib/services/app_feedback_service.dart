@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 
 enum FeedbackDisplayMode { snackbar, popup, silent }
 
@@ -137,10 +138,11 @@ class AppFeedbackService {
         ? ColorScheme.fromSeed(seedColor: Colors.orange)
         : Theme.of(context).colorScheme;
 
-    final accentColor = isError ? scheme.error : scheme.primary;
+    final accentColor = isError ? scheme.error : Colors.greenAccent.shade700;
+    // final icon = isError ? Icons.error_rounded : Icons.check_circle_rounded;
     final icon = isError
-        ? Icons.error_rounded
-        : Icons.check_circle_rounded;
+        ? 'assets/animations/error.json'
+        : 'assets/animations/order_success.json';
 
     Get.dialog<void>(
       Dialog(
@@ -151,6 +153,15 @@ class AppFeedbackService {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Container(
+              //   width: 64,
+              //   height: 64,
+              //   decoration: BoxDecoration(
+              //     shape: BoxShape.circle,
+              //     color: accentColor.withValues(alpha: 0.14),
+              //   ),
+              //   child: Icon(icon, color: accentColor, size: 34),
+              // ),
               Container(
                 width: 64,
                 height: 64,
@@ -158,7 +169,13 @@ class AppFeedbackService {
                   shape: BoxShape.circle,
                   color: accentColor.withValues(alpha: 0.14),
                 ),
-                child: Icon(icon, color: accentColor, size: 34),
+                child: Lottie.asset(
+                  icon,
+                  repeat: false,
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 14),
               Text(

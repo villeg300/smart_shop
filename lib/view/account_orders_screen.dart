@@ -28,7 +28,7 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen>
 
   late final OrderController _orderController;
   late final TabController _tabController;
-  _OrderFilter _filter = _OrderFilter.all;
+  _OrderFilter _filter = _OrderFilter.pending;
 
   @override
   void initState() {
@@ -503,11 +503,11 @@ class _AccountOrdersScreenState extends State<AccountOrdersScreen>
 }
 
 enum _OrderFilter {
-  all('Toute'),
-  ready('Prête'),
-  processing('En traitement'),
   pending('En attente'),
-  cancelled('Annulé');
+  processing('En traitement'),
+  ready('Prête'),
+  cancelled('Annulé'),
+  all('Toute');
 
   final String label;
   const _OrderFilter(this.label);

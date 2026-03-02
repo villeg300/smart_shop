@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 /// Client API avec gestion automatique du refresh token
@@ -10,34 +11,102 @@ class ApiClient {
 
   final String baseUrl;
   final GetStorage _storage = GetStorage();
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   // Clés de stockage
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
+  static String? _accessTokenCache;
+  static String? _refreshTokenCache;
+  static bool _tokensHydrated = false;
+  static Completer<void>? _hydrateCompleter;
 
   // Getters pour les tokens
-  String? get accessToken => _storage.read<String>(_accessTokenKey);
-  String? get refreshToken => _storage.read<String>(_refreshTokenKey);
+  String? get accessToken => _accessTokenCache;
+  String? get refreshToken => _refreshTokenCache;
+
+  Future<void> _hydrateTokens() async {
+    if (_tokensHydrated) {
+      return;
+    }
+    if (_hydrateCompleter != null) {
+      await _hydrateCompleter!.future;
+      return;
+    }
+
+    _hydrateCompleter = Completer<void>();
+    try {
+      final access = await _secureStorage.read(key: _accessTokenKey);
+      final refresh = await _secureStorage.read(key: _refreshTokenKey);
+
+      _accessTokenCache = access;
+      _refreshTokenCache = refresh;
+
+      // Migration douce: on nettoie l'ancien stockage non sécurisé.
+      final legacyAccess = _storage.read<String>(_accessTokenKey);
+      final legacyRefresh = _storage.read<String>(_refreshTokenKey);
+      if (legacyAccess != null || legacyRefresh != null) {
+        _storage.remove(_accessTokenKey);
+        _storage.remove(_refreshTokenKey);
+      }
+
+      _tokensHydrated = true;
+      _hydrateCompleter?.complete();
+    } catch (e) {
+      debugPrint('Erreur hydratation tokens: $e');
+      _tokensHydrated = true;
+      _hydrateCompleter?.complete();
+    } finally {
+      _hydrateCompleter = null;
+    }
+  }
 
   /// Sauvegarder les tokens
-  void saveTokens({required String access, required String refresh}) {
-    _storage.write(_accessTokenKey, access);
-    _storage.write(_refreshTokenKey, refresh);
+  Future<void> saveTokens({
+    required String access,
+    required String refresh,
+  }) async {
+    _accessTokenCache = access;
+    _refreshTokenCache = refresh;
+    _tokensHydrated = true;
+
+    await Future.wait([
+      _secureStorage.write(key: _accessTokenKey, value: access),
+      _secureStorage.write(key: _refreshTokenKey, value: refresh),
+    ]);
   }
 
   /// Sauvegarder uniquement l'access token (après refresh)
-  void saveAccessToken(String access) {
-    _storage.write(_accessTokenKey, access);
+  Future<void> saveAccessToken(String access) async {
+    _accessTokenCache = access;
+    _tokensHydrated = true;
+    await _secureStorage.write(key: _accessTokenKey, value: access);
   }
 
   /// Supprimer tous les tokens
-  void clearTokens() {
+  Future<void> clearTokens() async {
+    _accessTokenCache = null;
+    _refreshTokenCache = null;
+    _tokensHydrated = true;
+
+    await Future.wait([
+      _secureStorage.delete(key: _accessTokenKey),
+      _secureStorage.delete(key: _refreshTokenKey),
+    ]);
+
     _storage.remove(_accessTokenKey);
     _storage.remove(_refreshTokenKey);
   }
 
   /// Vérifier si l'utilisateur est authentifié
   bool get isAuthenticated => accessToken != null && refreshToken != null;
+
+  Future<bool> isAuthenticatedAsync() async {
+    await _hydrateTokens();
+    return isAuthenticated;
+  }
 
   /// Headers par défaut
   Map<String, String> _headers({bool includeAuth = true}) {
@@ -55,7 +124,36 @@ class ApiClient {
 
   /// Construire l'URI
   Uri _uri(String path) {
-    return Uri.parse('$baseUrl$path');
+    final base = Uri.parse(baseUrl.trim());
+    final endpoint = Uri.parse(path.trim());
+
+    var endpointPath = endpoint.path;
+    if (!endpointPath.startsWith('/')) {
+      endpointPath = '/$endpointPath';
+    }
+
+    final baseSegments = base.pathSegments.where(
+      (segment) => segment.isNotEmpty,
+    );
+    final baseHasApi = baseSegments.contains('api');
+
+    if (baseHasApi && endpointPath.startsWith('/api/')) {
+      endpointPath = endpointPath.replaceFirst('/api', '');
+    } else if (!baseHasApi && !endpointPath.startsWith('/api/')) {
+      endpointPath = '/api$endpointPath';
+    }
+
+    final basePath = base.path.endsWith('/')
+        ? base.path.substring(0, base.path.length - 1)
+        : base.path;
+    final mergedPath = '${basePath.isEmpty ? '' : basePath}$endpointPath';
+
+    return base.replace(
+      path: mergedPath,
+      queryParameters: endpoint.queryParameters.isEmpty
+          ? null
+          : endpoint.queryParameters,
+    );
   }
 
   /// GET request avec auto-refresh
@@ -140,6 +238,8 @@ class ApiClient {
     Future<http.Response> Function() request, {
     bool includeAuth = true,
   }) async {
+    await _hydrateTokens();
+
     // Première tentative
     http.Response response = await request();
 
@@ -159,6 +259,11 @@ class ApiClient {
   /// Rafraîchir l'access token avec le refresh token
   Future<bool> _refreshAccessToken() async {
     try {
+      await _hydrateTokens();
+      if (refreshToken == null || refreshToken!.isEmpty) {
+        return false;
+      }
+
       final response = await http.post(
         _uri('/api/auth/jwt/refresh/'),
         headers: {'Content-Type': 'application/json'},
@@ -168,11 +273,11 @@ class ApiClient {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final newAccessToken = data['access'] as String;
-        saveAccessToken(newAccessToken);
+        await saveAccessToken(newAccessToken);
         return true;
       } else {
         // Refresh token invalide ou expiré
-        clearTokens();
+        await clearTokens();
         return false;
       }
     } catch (e) {
@@ -183,6 +288,7 @@ class ApiClient {
 
   /// Vérifier si le token est valide
   Future<bool> verifyToken() async {
+    await _hydrateTokens();
     if (accessToken == null) return false;
 
     try {

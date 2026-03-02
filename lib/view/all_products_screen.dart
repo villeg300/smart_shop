@@ -30,16 +30,18 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
       return products;
     }
 
-    return products.where((product) {
-      final name = product.name.toLowerCase();
-      final brand = product.brand.toLowerCase();
-      final model = product.model.toLowerCase();
-      final category = product.category.name.toLowerCase();
-      return name.contains(query) ||
-          brand.contains(query) ||
-          model.contains(query) ||
-          category.contains(query);
-    }).toList(growable: false);
+    return products
+        .where((product) {
+          final name = product.name.toLowerCase();
+          final brand = product.brand.toLowerCase();
+          final model = product.model.toLowerCase();
+          final category = product.category.name.toLowerCase();
+          return name.contains(query) ||
+              brand.contains(query) ||
+              model.contains(query) ||
+              category.contains(query);
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -58,8 +60,11 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
             ),
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                if (notification.metrics.pixels >=
-                    notification.metrics.maxScrollExtent - 200) {
+                if (notification is ScrollUpdateNotification &&
+                    (notification.scrollDelta ?? 0) > 0 &&
+                    storeController.hasMore.value &&
+                    !storeController.isLoadingMoreProducts.value &&
+                    notification.metrics.extentAfter < 220) {
                   storeController.loadMoreProducts();
                 }
                 return false;
@@ -166,7 +171,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                     }),
                   ),
                   Obx(() {
-                    if (storeController.isLoadingProducts.value &&
+                    if (storeController.isLoadingMoreProducts.value &&
                         storeController.filteredProducts.isNotEmpty) {
                       return const SliverToBoxAdapter(
                         child: Center(

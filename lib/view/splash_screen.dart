@@ -24,6 +24,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _navigateToNextScreen() async {
     // Attendre l'animation du splash (2.5 secondes)
     await Future.delayed(const Duration(milliseconds: 2500));
+    await authController.waitUntilInitialized();
 
     // Vérifier l'état d'authentification
     if (authController.isFirstTime) {
@@ -31,8 +32,6 @@ class _SplashScreenState extends State<SplashScreen> {
       Get.offAll(() => const OnboardingScreen());
     } else if (authController.isAuthenticated) {
       // Utilisateur déjà connecté avec tokens valides
-      // Charger le profil utilisateur
-      await authController.loadCurrentUser();
       Get.offAll(() => const MainScreen());
     } else {
       // Utilisateur non connecté
